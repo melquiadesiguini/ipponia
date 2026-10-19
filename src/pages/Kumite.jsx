@@ -339,6 +339,12 @@ function Kumite({ modoKansa = false, sistemaJueces = null }) {
   }
 
   // Reiniciar combate (botón CANCELAR, con confirmación)
+  const nuevoCombate = () => {
+    if (confirm('¿Seguro que querés iniciar un nuevo combate?')) {
+      resetCombate()
+    }
+  }
+
   const reiniciarCombateCompleto = () => {
     if (confirm('¿Seguro que querés reiniciar el combate actual?')) {
       resetCombate()
@@ -364,9 +370,10 @@ function Kumite({ modoKansa = false, sistemaJueces = null }) {
           type="button"
           className="btn-display btn-pantalla-completa"
           onClick={alternarPantallaCompleta}
-          title={pantallaCompleta ? 'Salir de pantalla completa' : 'Ocultar el menú y el pie de página'}
+          title={pantallaCompleta ? 'Salir de pantalla completa' : 'Pantalla completa'}
+          aria-label={pantallaCompleta ? 'Salir de pantalla completa' : 'Pantalla completa'}
         >
-          {pantallaCompleta ? '⤡ Salir de pantalla completa' : '⤢ Pantalla completa'}
+          {pantallaCompleta ? '⤡' : '⤢'}
         </button>
 
         {!modoKansa && (
@@ -488,6 +495,8 @@ function Kumite({ modoKansa = false, sistemaJueces = null }) {
           </div>
 
           {/* Botones finales */}
+          {/* En pantalla completa no se muestran Cancelar ni Nuevo combate */}
+          {!pantallaCompleta && (
           <div className="kumite-footer">
             <button
               onClick={reiniciarCombateCompleto}
@@ -496,12 +505,13 @@ function Kumite({ modoKansa = false, sistemaJueces = null }) {
               CANCELAR
             </button>
             <button
-              onClick={resetCombate}
+              onClick={nuevoCombate}
               className="btn-guardar"
             >
-              INICIAR NUEVO COMBATE
+              NUEVO COMBATE
             </button>
           </div>
+          )}
         </div>
 
         {/* Cartel de ganador */}
@@ -542,8 +552,8 @@ function Kumite({ modoKansa = false, sistemaJueces = null }) {
                 <button className="btn-save" onClick={guardarEnHistorial}>
                   💾 Guardar en Historial
                 </button>
-                <button className="btn-new" onClick={resetCombate}>
-                  ➕ Iniciar Nuevo Combate
+                <button className="btn-new" onClick={nuevoCombate}>
+                  ➕ Nuevo Combate
                 </button>
               </div>
             </div>
