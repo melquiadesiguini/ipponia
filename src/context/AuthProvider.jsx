@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { supabase, supabaseConfigurado } from '../lib/supabase'
+import { supabase, supabaseConfigurado, conRespaldoDeSesion } from '../lib/supabase'
+import { esErrorDeRed } from '../lib/errores'
+import { guardarDatosCuenta, leerDatosCuenta, olvidarDatosCuenta } from '../lib/datosOffline'
 import { emailInterno, recordarOrganizacion } from '../lib/ingreso'
 import { AuthContext } from './auth-context'
 
@@ -36,7 +38,9 @@ async function cargarDatos(userId) {
     supabase.rpc('es_superadmin'),
     supabase.rpc('mis_permisos_todos'),
   ])
-  if (perfilRes.error || superRes.error || permisosRes.error) return { error: true }
+  if (perfilRes.error || superRes.error || permisosRes.error) {
+    return { error: true, sinRed: [perfilRes.error, superRes.error, permisosRes.error].some(esErrorDeRed) }
+  }
 
   const { organizaciones: organizacion = null, ...perfil } = perfilRes.data ?? {}
   return {
@@ -46,6 +50,19 @@ async function cargarDatos(userId) {
     esSuperAdmin: superRes.data === true,
     permisos: permisosRes.data ?? [],
   }
+}
+
+// Con conexión se leen y se guarda una copia; sin conexión se usa la última copia, así la app abre igual.
+// (Los permisos de la copia pueden estar desactualizados: se renuevan apenas hay internet, y la base los exige al enviar.)
+async function cargarDatosConRespaldo(userId) {
+  const d = await cargarDatos(userId)
+  if (!d.error) {
+    guardarDatosCuenta(userId, d)
+    return d
+  }
+  // solo se usa la copia si falló la conexión (un rechazo del servidor, como un token inválido, sigue siendo un error)
+  const copia = d.sinRed ? leerDatosCuenta(userId) : null
+  return copia ? { ...copia, error: false } : d
 }
 
 const SIN_DATOS = { userId: null, error: false, perfil: null, organizacion: null, esSuperAdmin: false, permisos: [] }
@@ -59,15 +76,17 @@ function AuthProvider({ children }) {
   useEffect(() => {
     if (!supabase) return undefined
 
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session)
+    supabase.auth.getSession().then(({ data, error }) => {
+      setSession(conRespaldoDeSesion(data.session, navigator.onLine === false || esErrorDeRed(error)))
       setCargando(false)
     })
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_evento, nuevaSesion) => {
-      setSession(nuevaSesion)
+    } = supabase.auth.onAuthStateChange((evento, nuevaSesion) => {
+      // sin internet Supabase no puede renovar un token vencido y avisa "sin sesión": se conserva la guardada
+      const sinRed = evento !== 'SIGNED_OUT' && (evento === 'INITIAL_SESSION' || navigator.onLine === false)
+      setSession(conRespaldoDeSesion(nuevaSesion, sinRed))
     })
 
     return () => subscription.unsubscribe()
@@ -84,14 +103,14 @@ function AuthProvider({ children }) {
   )
 
   const recargar = useCallback(async () => {
-    if (supabase && userId) aplicar(await cargarDatos(userId))
+    if (supabase && userId) aplicar(await cargarDatosConRespaldo(userId))
   }, [userId, aplicar])
 
   // Se piden una vez al iniciar sesión; "cargado" se deriva de `datos.userId` (ver más abajo)
   useEffect(() => {
     if (!supabase || !userId) return undefined
     let activo = true
-    cargarDatos(userId).then((d) => activo && aplicar(d))
+    cargarDatosConRespaldo(userId).then((d) => activo && aplicar(d))
     return () => {
       activo = false
     }
@@ -159,6 +178,7 @@ function AuthProvider({ children }) {
       },
 
       async cerrarSesion() {
+        olvidarDatosCuenta()
         await supabase.auth.signOut()
       },
     }

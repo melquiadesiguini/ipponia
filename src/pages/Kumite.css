@@ -571,6 +571,27 @@
   color: white;
 }
 
+.resultado-guardado {
+  margin: 0 0 1rem 0;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.resultado-guardado-ok {
+  background: rgba(76, 175, 80, 0.55);
+}
+
+.resultado-guardado-pendiente {
+  background: rgba(217, 119, 6, 0.75);
+}
+
+.resultado-guardado-error {
+  background: rgba(185, 28, 28, 0.8);
+}
+
 .resultado-acciones .btn-save {
   background-color: #4caf50;
   box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);

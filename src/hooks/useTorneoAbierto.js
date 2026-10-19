@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import useAuth from './useAuth'
 import { listarTorneos } from '../lib/torneos'
+import { guardarTorneoAbierto, leerTorneoAbierto } from '../lib/datosOffline'
 
 export const MENSAJE_SIN_TORNEO = 'No hay un torneo abierto: no se pueden cargar resultados. Abrí uno en Configuración → Torneos.'
 
@@ -9,7 +10,8 @@ export const MENSAJE_SIN_TORNEO = 'No hay un torneo abierto: no se pueden cargar
 // Sin sesión o sin base de datos (modo local) no se aplica ninguna restricción.
 //   aplica: ¿rige la regla?   torneo: { id, nombre } | null   sinTorneo: no hay torneo abierto (ya se consultó)
 export default function useTorneoAbierto() {
-  const { configurado, user } = useAuth()
+  const { configurado, user, organizacion } = useAuth()
+  const organizacionId = organizacion?.id ?? null
   const userId = user?.id ?? null
   const aplica = Boolean(configurado && userId)
   const [estado, setEstado] = useState({ cargando: true, torneo: null })
@@ -18,12 +20,17 @@ export default function useTorneoAbierto() {
     if (!aplica) return undefined
     let activo = true
     listarTorneos().then((r) => {
-      if (activo) setEstado({ cargando: false, torneo: r.filas.find((t) => t.estado === 'activo') ?? null, error: !r.ok })
+      if (!activo) return
+      const abierto = r.filas.find((t) => t.estado === 'activo') ?? null
+      // Sin conexión (la consulta falló) se muestra el último torneo abierto que se conocía
+      const torneo = r.ok ? abierto : leerTorneoAbierto(organizacionId)
+      if (r.ok && organizacionId) guardarTorneoAbierto(organizacionId, abierto && { id: abierto.id, nombre: abierto.nombre })
+      setEstado({ cargando: false, torneo, error: !r.ok })
     })
     return () => {
       activo = false
     }
-  }, [aplica, userId])
+  }, [aplica, userId, organizacionId])
 
   return {
     aplica,

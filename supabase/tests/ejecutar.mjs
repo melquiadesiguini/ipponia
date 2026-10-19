@@ -446,6 +446,40 @@ await abiertoBorrador(id(101), 'activo')
 prueba('se puede volver a abrir un torneo cerrado', (await uno(`select estado from public.torneos where id = '${id(101)}'`)).estado === 'activo')
 await db.exec(`delete from public.resultados_jurado where organizacion_id = '${orgB.id}'; delete from public.resultados_kumite where organizacion_id = '${orgB.id}'`)
 
+// ---------------------------------------------------------------- 8c) Resultados cargados sin conexión
+console.log('\n8c) Resultados cargados sin conexión (hora y torneo del momento, sin duplicar)')
+const conHora = (competidor, hora, torneo) => jurado({ competidor, cols: ', creado_en' + (torneo ? ', torneo_id' : ''), vals: `, ${hora}` + (torneo ? `, '${torneo}'` : '') })
+const idRep = '00000000-0000-4000-8000-0000000fffff'
+// un resultado cargado hace 3 horas, con el torneo 101 que estaba abierto entonces; ahora está cerrado y el abierto es otro
+await abiertoBorrador(id(101), 'finalizado')
+await abiertoBorrador(id(102), 'activo')
+await como(U.juezB, () => db.exec(conHora('SinRed1', `now() - interval '3 hours'`, id(101))))
+const sr1 = await uno(`select torneo_id, creado_en from public.resultados_jurado where competidor = 'SinRed1'`)
+prueba('el resultado enviado tarde conserva el torneo que estaba abierto al cargarlo', sr1.torneo_id === id(101))
+prueba('y conserva la hora en que se cargó (no la del envío)', Date.now() - new Date(sr1.creado_en).getTime() > 2.9 * 3600 * 1000)
+await como(U.juezB, () => db.exec(conHora('SinRed2', `now() - interval '3 hours'`)))
+prueba('si el envío tarde no trae torneo, va al torneo abierto', (await uno(`select torneo_id from public.resultados_jurado where competidor = 'SinRed2'`)).torneo_id === id(102))
+await como(U.juezB, () => db.exec(conHora('SinRed3', `now() - interval '3 hours'`, id(201))))
+prueba('un torneo de otra organización se ignora: el resultado va al torneo abierto', (await uno(`select torneo_id from public.resultados_jurado where competidor = 'SinRed3'`)).torneo_id === id(102))
+await como(U.juezB, () => db.exec(conHora('SinRed4', 'now()', id(101))))
+prueba('un resultado actual (no tarde) ignora el torneo que mande la app', (await uno(`select torneo_id from public.resultados_jurado where competidor = 'SinRed4'`)).torneo_id === id(102))
+prueba('un resultado de más de 14 días se rechaza', await como(U.juezB, () => falla(() => db.exec(conHora('Viejo', `now() - interval '15 days'`, id(101))), 'demasiado viejo')))
+await como(U.juezB, () => db.exec(conHora('Futuro', `now() + interval '2 days'`)))
+prueba('una hora del futuro (reloj mal puesto) se guarda con la hora del servidor', Math.abs(Date.now() - new Date((await uno(`select creado_en from public.resultados_jurado where competidor = 'Futuro'`)).creado_en).getTime()) < 60000)
+await abiertoBorrador(id(102), 'finalizado')
+prueba('sin torneo abierto, un resultado tarde sin torneo conocido se rechaza', await como(U.juezB, () => falla(() => db.exec(conHora('SinTorneo', `now() - interval '3 hours'`)), 'No hay un torneo abierto')))
+prueba('sin torneo abierto, un resultado tarde con su torneo cerrado se acepta', await como(U.juezB, async () => { await db.exec(conHora('TardeCerrado', `now() - interval '3 hours'`, id(101))); return true }))
+// reenvío del mismo resultado (se cortó la respuesta): la clave primaria lo frena
+const conId = (idFila) => `insert into public.resultados_jurado (id, organizacion_id, creado_por, modulo, competidor, sistema_jueces, juez1_puntaje, juez2_puntaje, juez_central_puntaje, puntaje_final, creado_en, torneo_id)
+  values ('${idFila}', '${orgB.id}', '${U.juezB}', 'kata', 'Repetido', 3, 5, 5, 5, 15, now() - interval '1 hour', '${id(101)}')`
+await como(U.juezB, () => db.exec(conId(idRep)))
+prueba('enviar dos veces el mismo resultado no lo duplica (error 23505: la app lo toma como enviado)', await como(U.juezB, () => falla(() => db.exec(conId(idRep)), 'duplicate key')))
+prueba('queda una sola fila', Number((await uno(`select count(*) n from public.resultados_jurado where id = '${idRep}'`)).n) === 1)
+await como(U.kansaB, () => db.exec(`insert into public.resultados_kumite (organizacion_id, creado_por, puntaje_shiro, puntaje_aka, creado_en, torneo_id) values ('${orgB.id}', '${U.kansaB}', 3, 1, now() - interval '5 hours', '${id(101)}')`))
+prueba('Kumite también acepta la hora y el torneo del momento: el combate enviado tarde quedó en su torneo', (await uno(`select torneo_id from public.resultados_kumite where organizacion_id = '${orgB.id}' and creado_en < now() - interval '4 hours'`))?.torneo_id === id(101))
+await abiertoBorrador(id(101), 'activo')
+await db.exec(`delete from public.resultados_jurado where organizacion_id = '${orgB.id}'; delete from public.resultados_kumite where organizacion_id = '${orgB.id}'`)
+
 // ---------------------------------------------------------------- 9) El código de la app contra la base
 console.log('\n9) El código de la app guarda en las tablas reales')
 // Inserta una fila armada por src/lib/filasResultados.js, como lo hace la app (con las columnas y tipos que la base exige)

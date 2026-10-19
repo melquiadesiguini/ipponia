@@ -4,6 +4,7 @@ import logoClaro from '../../assets/images/ipponia-logo.png' // cinturón negro 
 import logoOscuro from '../../assets/images/ipponia-logo-oscuro.png' // cinturón blanco (tema oscuro)
 import useTheme from '../../hooks/useTheme'
 import useAuth from '../../hooks/useAuth'
+import EstadoConexion from '../EstadoConexion/EstadoConexion'
 import { PERMISOS_MODULO, seccionesVisibles } from '../../lib/permisos'
 import s from './Header.module.css'
 
@@ -46,6 +47,7 @@ function Header() {
           />
           <h1 className={s.logo}>IPPONIA</h1>
         </Link>
+        {user && <EstadoConexion />}
         <button
           type="button"
           className={s.hamburguesa}

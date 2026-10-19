@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test:db": "node supabase/tests/ejecutar.mjs",
+    "test:offline": "node supabase/tests/sin-conexion.mjs",
     "test:functions": "npx --yes deno test --no-lock supabase/functions/_shared/acciones.test.ts"
   },
   "dependencies": {

@@ -22,6 +22,13 @@ async function buscarVersionNueva() {
 
 if (import.meta.env.PROD) buscarVersionNueva()
 
+// Modo sin conexión: el service worker deja la app guardada en el dispositivo para abrirla sin internet
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`).catch(() => {})
+  })
+}
+
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <App />

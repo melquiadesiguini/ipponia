@@ -363,3 +363,37 @@ Sub-etapas: **3a** sesión, permisos, ingreso por organización · **3b** Usuari
 - [ ] ¿Cuántos usuarios y áreas tiene un torneo típico del cliente actual? (define si el Básico se limita también por usuarios o áreas)
 - [ ] Precio de "cliente fundador" para el cliente actual, antes de que se acostumbre a que sea gratis.
 - [ ] Por mes, por torneo, o ambas formas desde el principio.
+
+## 19. Modo sin conexión y guardado automático de Kumite (19/10/2026)
+
+**Para qué:** los torneos suelen hacerse en gimnasios con mala señal. La app tiene que abrir, seguir funcionando y no perder resultados sin internet.
+
+### 19.1 Qué hace
+- **La app abre sin internet.** Un service worker (`public/sw.plantilla.js`, que `vite.config.js` convierte en `sw.js` con la lista de archivos de cada versión) deja guardada la app en el dispositivo. Las páginas se piden primero a la red (siempre la versión nueva) y, si no hay conexión, se entrega la app guardada. `version.json` y `sw.js` siempre van a la red; Supabase y las tipografías no se tocan.
+- **La sesión y la cuenta sobreviven.** Con el token vencido y sin internet, Supabase no puede renovarlo y dice "sin sesión": se usa la sesión que quedó en el dispositivo (cuando vuelve la conexión, Supabase renueva el token solo). Los datos de la cuenta (perfil, organización y permisos) y el torneo abierto se copian en el dispositivo cada vez que hay conexión (`lib/datosOffline.js`) y se usan si la consulta falla por falta de red. Al cerrar sesión se borra la copia de la cuenta.
+- **Los resultados no se pierden.** Si el envío falla por falta de red, el resultado queda en una cola en el dispositivo (`lib/colaResultados.js`) con la hora real y el torneo que estaba abierto, y se envía solo: al abrir la app, al iniciar sesión, cuando el navegador avisa que volvió internet y cada 20 segundos (`SincronizadorOffline`).
+- **Nunca se duplica.** Cada resultado nace con su propio `id` (uuid); si un envío llegó pero se perdió la respuesta, el reintento choca con la clave primaria (23505) y se da por enviado.
+- **Cada resultado se envía con la sesión de quien lo cargó.** Si otro usuario inicia sesión en la tablet, los resultados del primero esperan.
+- **Aviso en el encabezado** (`EstadoConexion`): "Sin conexión", "N por enviar", "Enviando…" o "N sin enviar" con botón Reintentar (cuando la base rechazó alguno, por ejemplo por no haber un torneo abierto). No muestra nada cuando está todo en orden.
+- Kata, Kobudo y Destreza no cambian: el mensaje de guardado dice que quedó en el dispositivo y se enviará solo.
+
+### 19.2 Reglas nuevas en la base (migración `20261019120000_resultados_sin_conexion.sql`)
+- El envío puede traer `creado_en` (hora real) y `torneo_id` (el que estaba abierto). Un resultado de más de 14 días se rechaza; una hora más de 5 minutos en el futuro se reemplaza por la del servidor.
+- El torneo que manda el dispositivo solo se respeta si el resultado llega tarde (más de 2 minutos después de su hora), es de la misma organización y está abierto o cerrado. Si no, vale la regla de siempre: va al torneo abierto, y sin torneo abierto se rechaza.
+- Riesgo asumido: quien puede cargar resultados podría, con una hora adelantada hasta 14 días, cargar un resultado en el último torneo cerrado. Queda registrado quién lo cargó (`creado_por`) y el administrador puede corregir o borrar.
+
+### 19.3 Guardado automático en Kumite
+- **Mesa:** el combate se guarda solo apenas aparece el ganador (el empate no se guarda: se define en Encho-Sen y se guarda ese resultado). No hay botón de guardar; el cartel muestra cómo salió (guardado, guardado en el dispositivo o error con "Reintentar guardado"). Si se cierra el cartel y no se pudo guardar, queda un aviso arriba del tablero.
+- **Kansa:** conserva el botón "Guardar en Historial" (es un tablero independiente y no se guarda solo, para no duplicar los combates de la Mesa).
+- El mismo resultado no se guarda dos veces (se compara ganador, nombres, puntajes, categoría y salida).
+
+### 19.4 Pruebas
+- `npm run test:db`: **207 correctas** (incluye la sección 8c: hora y torneo del momento, 14 días, duplicados).
+- `npm run test:offline`: **36 correctas** (qué es un error de red, la cola, el envío con cortes, rechazos y duplicados, y el service worker).
+- Probado a mano en el navegador: con la base inalcanzable, la app abre con la cuenta guardada, el combate de Kumite se guarda en la cola y el aviso del encabezado cuenta los pendientes.
+
+### 19.5 Límites y pendientes
+- La primera vez hay que abrir la app **con internet** (para que se instale el service worker y se guarde la cuenta). Un usuario nuevo no puede ingresar por primera vez sin internet.
+- Las tipografías de Google no se guardan: sin internet se usa la tipografía del sistema.
+- Instalar la app en la pantalla de inicio (PWA) mejora que el sistema operativo no borre lo guardado; el manifiesto ya existe.
+- Probar en tablet real: abrir con internet, activar modo avión, recargar y cargar resultados.

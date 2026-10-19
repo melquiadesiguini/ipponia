@@ -1,0 +1,33 @@
+.aviso {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    white-space: nowrap;
+    background: rgba(128, 128, 128, 0.18);
+    color: var(--header-text);
+}
+
+.sinRed {
+    background: #b45309;
+    color: #ffffff;
+}
+
+.problema {
+    background: #b91c1c;
+    color: #ffffff;
+}
+
+.reintentar {
+    padding: 0 8px;
+    margin-left: 0.25rem;
+    border: 1px solid currentColor;
+    border-radius: 999px;
+    background: transparent;
+    color: inherit;
+    font-size: 0.75rem;
+    cursor: pointer;
+}

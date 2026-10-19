@@ -77,6 +77,9 @@ function Kumite({ modoKansa = false, sistemaJueces = null }) {
 
   // null | 'shiro' | 'aka' | 'empate'
   const [ganador, setGanador] = useState(null)
+  // Cómo salió el guardado del combate: null | { tipo: 'ok' | 'pendiente' | 'error', texto }
+  const [guardado, setGuardado] = useState(null)
+  const ultimoGuardado = useRef('')
   const [enchoSen, setEnchoSen] = useState(false)
   const [resultadoVisible, setResultadoVisible] = useState(true)
 
@@ -295,34 +298,36 @@ function Kumite({ modoKansa = false, sistemaJueces = null }) {
     setResultadoVisible(true)
     setTimerActive(false)
     setDuration(DURACION_COMBATE)
+    setGuardado(null)
+    ultimoGuardado.current = ''
   }
 
-  // Guardar el resultado del combate en el historial (sin reiniciar)
-  const guardarEnHistorial = () => {
+  // Guarda el resultado del combate en el historial (sin reiniciar). En la Mesa se hace solo, apenas hay ganador;
+  // en Kansa, con el botón. Sin conexión queda en este dispositivo y se envía cuando vuelve internet.
+  const guardarCombate = () => {
     // sin torneo abierto no se guarda nada (la base también lo rechaza)
     if (sinTorneo) {
-      alert(MENSAJE_SIN_TORNEO)
+      setGuardado({ tipo: 'error', texto: MENSAJE_SIN_TORNEO })
       return
     }
     const shiroTotal = calcularTotal('shiro')
     const akaTotal = calcularTotal('aka')
-    const resultado = nombreResultado(ganador)
 
-    const payload = {
-      categoria,
-      nombreShiro: nombreDe('shiro'),
-      nombreAka: nombreDe('aka'),
-      shiroTotal,
-      akaTotal,
-      ganador: resultado,
-      ladoGanador: ganador ?? 'empate',
-    }
+    // el mismo resultado no se guarda dos veces (por ejemplo, si se pulsa el botón de nuevo)
+    const firma = JSON.stringify([ganador, enchoSen, nombres, shiroTotal, akaTotal, categoria, salida])
+    if (ultimoGuardado.current === firma) return
+    ultimoGuardado.current = firma
 
-    console.log('Combate guardado:', payload)
     guardarResultado({
       modulo: 'kumite',
       payload: {
-        ...payload,
+        categoria,
+        nombreShiro: nombreDe('shiro'),
+        nombreAka: nombreDe('aka'),
+        shiroTotal,
+        akaTotal,
+        ganador: nombreResultado(ganador),
+        ladoGanador: ganador ?? 'empate',
         faltas,
         salida,
         enchoSen,
@@ -332,11 +337,26 @@ function Kumite({ modoKansa = false, sistemaJueces = null }) {
         guardadoEn: new Date().toISOString(),
       },
     }).then((r) => {
-      alert(
-        `¡Combate Guardado!\n\nGanador: ${resultado}\nResultado: ${nombreDe('shiro')} ${shiroTotal} - ${nombreDe('aka')} ${akaTotal}\nCategoría: ${categoria}\n\n${mensajeGuardado(r)}`
-      )
+      if (r.ok) {
+        setGuardado({ tipo: 'ok', texto: 'Combate guardado en la nube.' })
+      } else if (r.pendiente) {
+        setGuardado({ tipo: 'pendiente', texto: mensajeGuardado(r) })
+      } else {
+        ultimoGuardado.current = '' // para poder reintentar
+        setGuardado({ tipo: 'error', texto: mensajeGuardado(r) })
+      }
     })
   }
+
+  // Guardado automático de la Mesa: al aparecer el ganador (el empate no se guarda: se define en Encho-Sen)
+  const guardarAutomaticoRef = useRef(guardarCombate)
+  useEffect(() => {
+    guardarAutomaticoRef.current = guardarCombate
+  })
+  useEffect(() => {
+    if (modoKansa || !ganador || ganador === 'empate') return
+    guardarAutomaticoRef.current()
+  }, [ganador, modoKansa])
 
   // Reiniciar combate (botón CANCELAR, con confirmación)
   const nuevoCombate = () => {
@@ -460,6 +480,20 @@ function Kumite({ modoKansa = false, sistemaJueces = null }) {
             </div>
           )}
 
+          {/* Si se cerró el cartel del ganador y el combate no se pudo guardar, el aviso sigue a la vista */}
+          {!modoKansa && ganador && ganador !== 'empate' && !resultadoVisible && guardado && guardado.tipo !== 'ok' && (
+            <div className="resultado-banner resultado-empate">
+              <span>
+                {guardado.tipo === 'error' ? '⚠️ ' : ''}{guardado.texto}
+              </span>
+              {guardado.tipo === 'error' && (
+                <button className="btn-encho-sen" onClick={guardarCombate}>
+                  REINTENTAR
+                </button>
+              )}
+            </div>
+          )}
+
           {/* Marcadores */}
           <div className="kumite-marcadores">
             <Marcador
@@ -548,10 +582,19 @@ function Kumite({ modoKansa = false, sistemaJueces = null }) {
                 vs {nombreDe(oponenteDe(ganador))}: {calcularTotal(oponenteDe(ganador))}
               </p>
 
+              {guardado && (
+                <p className={`resultado-guardado resultado-guardado-${guardado.tipo}`} role="status">
+                  {guardado.tipo === 'ok' ? '✅ ' : guardado.tipo === 'error' ? '⚠️ ' : ''}{guardado.texto}
+                </p>
+              )}
+
               <div className="resultado-acciones">
-                <button className="btn-save" onClick={guardarEnHistorial}>
-                  💾 Guardar en Historial
-                </button>
+                {/* Mesa: se guarda sola, y el botón solo aparece si falló. Kansa: se guarda con el botón */}
+                {(modoKansa ? guardado?.tipo !== 'ok' && guardado?.tipo !== 'pendiente' : guardado?.tipo === 'error') && (
+                  <button className="btn-save" onClick={guardarCombate}>
+                    {modoKansa ? '💾 Guardar en Historial' : '↻ Reintentar guardado'}
+                  </button>
+                )}
                 <button className="btn-new" onClick={nuevoCombate}>
                   ➕ Nuevo Combate
                 </button>

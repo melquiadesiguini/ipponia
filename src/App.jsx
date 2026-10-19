@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate, useParams, useSearchParams } fr
 import AuthProvider from './context/AuthProvider'
 import RutaProtegida from './components/RutaProtegida'
 import RequierePermiso from './components/RequierePermiso'
+import SincronizadorOffline from './components/EstadoConexion/SincronizadorOffline'
 import { PERMISOS_MODULO } from './lib/permisos'
 import Home from './pages/Home'
 import Kata from './pages/Kata'
@@ -39,6 +40,7 @@ function KumiteConSistema({ modoKansa = false }) {
 function App() {
   return (
     <AuthProvider>
+      <SincronizadorOffline />
       <BrowserRouter basename={import.meta.env.BASE_URL}>
         <Routes>
           {/* Públicas */}
