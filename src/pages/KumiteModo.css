@@ -33,6 +33,11 @@
   justify-content: center;
 }
 
+/* una sola tarjeta (usuario con un único rol): centrada */
+.modo-opciones-una {
+  grid-template-columns: minmax(0, 22rem);
+}
+
 .modo-card {
   display: flex;
   flex-direction: column;
