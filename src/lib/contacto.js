@@ -1,5 +1,8 @@
 // Contacto comercial de IPPONIA: a dónde llegan las solicitudes de acceso.
 
+// Nombre que aparece en el pie de página (© año NOMBRE). Cuando la agencia tenga nombre, se cambia solo acá.
+export const NOMBRE_EMPRESA = 'IPPONIA'
+
 // Número de WhatsApp en formato internacional, solo dígitos y sin "+".
 // Argentina (celular): 549 + código de área sin 0 + número sin 15. Ej.: 5491122334455
 export const WHATSAPP_NUMERO = '5491157462523'

@@ -47,7 +47,7 @@ export const CAMPOS_PERSONAS = {
       encabezados: ['nombre', 'escuela'],
       filas: [
         ['Lucía Fernández', 'Dojo Central'],
-        ['Mateo Rossi', 'Ikigai Dojo'],
+        ['Mateo Rossi', 'Dojo Norte'],
       ],
     },
   },
