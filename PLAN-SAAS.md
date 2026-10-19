@@ -268,7 +268,7 @@ Sub-etapas: **3a** sesión, permisos, ingreso por organización · **3b** Usuari
 
 ### Pendientes después de la Etapa 3
 - Configurar SMTP propio en Supabase (invitaciones y recuperación de contraseña por email) antes de tener clientes reales.
-- Actualizar `desactivar-usuario` y `crear-organizacion` a las claves nuevas (`SUPABASE_PUBLISHABLE_KEYS` / `SUPABASE_SECRET_KEYS`); hoy funcionan con las heredadas.
+- [x] `desactivar-usuario` y `crear-organizacion` publicadas con la versión que usa las claves nuevas (`SUPABASE_PUBLISHABLE_KEYS` / `SUPABASE_SECRET_KEYS`, con las heredadas de respaldo) (19/10/2026). Las cuatro funciones responden bien (401 sin sesión).
 - Elegir torneo activo en la pantalla de trabajo y guardar `torneo_id` en cada resultado (hoy se guarda sin torneo; los permisos por torneo y área ya existen en la base).
 - Reincorporar "jueces conectados" (puntaje en tiempo real), hoy guardado en `stash@{0}`.
 - Dominio propio (`ipponia.com`) y marca en el INPI; con dominio propio cambia `base` a `/` y `pathSegmentsToKeep` a 0 en `public/404.html`.
