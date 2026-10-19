@@ -1164,7 +1164,8 @@
   display: none;
 }
 
-@media (max-width: 1024px) {
+/* tablets grandes (por ejemplo apaisadas) pasan de 1024 px: se las reconoce por la pantalla táctil */
+@media (max-width: 1024px), (pointer: coarse) {
   .btn-display.btn-pantalla-completa {
     display: flex;
     left: auto;
