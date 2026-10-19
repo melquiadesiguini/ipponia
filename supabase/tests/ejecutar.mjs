@@ -13,6 +13,8 @@ import { dirname, join } from 'node:path'
 import { filaJurado, filaKumite } from '../../src/lib/filasResultados.js'
 import { calcularPuntaje } from '../../src/lib/jurado.js'
 import { valoresIniciales, validar, cambiosDesdeValores, calcularDeValores } from '../../src/lib/editarResultado.js'
+import { mensajeParaCliente } from '../../src/lib/mensajeCliente.js'
+import { slugDesdeNombre, conSufijo, SLUGS_RESERVADOS } from '../../src/lib/slug.js'
 
 const raiz = join(dirname(fileURLToPath(import.meta.url)), '..')
 const leer = (ruta) => readFileSync(join(raiz, ruta), 'utf8')
@@ -604,6 +606,40 @@ prueba('5 jueces: se descartan el mayor y el menor', JSON.stringify(calcularPunt
 prueba('5 jueces con todos iguales: mayor = el primero cargado, menor = el último', JSON.stringify(calcularPuntaje(pts(7, 7, 7, 7, 7), 5)) === JSON.stringify({ final: 21, descartados: [1, 5] }))
 prueba('con 5 jueces, un empate en el mayor descarta al primero', JSON.stringify(calcularPuntaje(pts(8, 6, 7, 8, 7), 5)) === JSON.stringify({ final: 22, descartados: [1, 2] }))
 prueba('si falta un puntaje no hay resultado', calcularPuntaje(pts(7, '', 7), 3).final === null && calcularPuntaje(pts(7, 7), 3).final === null)
+
+// ---------------------------------------------------------------- 11) Mensaje para pasarle al cliente
+console.log('\n11) Datos para pasarle al cliente')
+const base = { nombre: 'Club Norte', urlDueno: 'https://x.test/ipponia/ingresar', urlUsuarios: 'https://x.test/ipponia/club-norte/ingresar' }
+const alta = mensajeParaCliente({ ...base, email: 'dueno@club.test', clave: 'Abc123xyz' })
+prueba('el alta trae las dos direcciones, el email y la contraseña inicial', ['Club Norte', base.urlDueno, base.urlUsuarios, 'Email: dueno@club.test', 'Contraseña inicial: Abc123xyz'].every((t) => alta.includes(t)))
+prueba('el alta avisa que la primera vez pide cambiar la contraseña', alta.includes('te va a pedir que la cambies'))
+const invitacion = mensajeParaCliente({ ...base, email: 'dueno@club.test', clave: null })
+prueba('sin contraseña inicial avisa de la invitación por email y no inventa una contraseña', invitacion.includes('invitación por email') && !invitacion.includes('Contraseña inicial'))
+const existente = mensajeParaCliente({ ...base, vence: '31/12/2026' })
+prueba('una organización existente trae solo las direcciones y el vencimiento (no hay contraseña que mostrar)', existente.includes(base.urlUsuarios) && existente.includes('vigente hasta el 31/12/2026') && !existente.includes('Contraseña inicial') && !existente.includes('Email:'))
+prueba('sin vencimiento no menciona ninguna fecha', !mensajeParaCliente(base).includes('vigente'))
+
+// ---------------------------------------------------------------- 12) Identificador generado del nombre
+console.log('\n12) El identificador de la organización se genera del nombre')
+prueba('sin tildes, en minúsculas y con guiones', slugDesdeNombre('Club Núñez & Hijos') === 'club-nunez-hijos')
+prueba('una ñ queda como n', slugDesdeNombre('Dojo Español') === 'dojo-espanol')
+prueba('espacios y signos de más no dejan guiones sobrantes', slugDesdeNombre('  ¡Karate  Do!  ') === 'karate-do')
+prueba('un nombre muy corto se completa para llegar a 3 caracteres', slugDesdeNombre('AB') === 'ab-org')
+prueba('un nombre sin letras ni números no genera nada (la pantalla pide escribirlo)', slugDesdeNombre('¡¿?!') === '')
+prueba('un nombre muy largo se corta sin terminar en guion', slugDesdeNombre('Asociación Argentina de Karate Tradicional Estilo Shotokan').length <= 34 && !slugDesdeNombre('Asociación Argentina de Karate Tradicional Estilo Shotokan').endsWith('-'))
+prueba('una palabra reservada (/kata, /cuenta…) no se usa tal cual', slugDesdeNombre('Kata') === 'kata-org' && slugDesdeNombre('Cuenta') === 'cuenta-org')
+prueba('si ya existe, se prueba con -2, -3…', conSufijo('club-norte', 1) === 'club-norte' && conSufijo('club-norte', 2) === 'club-norte-2' && conSufijo('club-norte', 3) === 'club-norte-3')
+prueba('la lista de palabras reservadas de la app es la misma que la de la base', JSON.stringify([...SLUGS_RESERVADOS].sort()) === JSON.stringify([...(await uno('select public.slugs_reservados() r')).r].sort()))
+const nombresPrueba = ['Ikigai Dojo', 'Hector Maroli', 'Club Núñez & Hijos', 'AB', 'Kata', 'Dojo Ñandú 2026', 'A', 'Asociación Argentina de Karate Tradicional Estilo Shotokan', 'Ipponia', 'Ñ']
+let validos = true
+for (const n of nombresPrueba) {
+  for (const k of [1, 2, 9]) {
+    const sl = conSufijo(slugDesdeNombre(n), k)
+    const r = await uno(`select ('${sl}' ~ '^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$' and not '${sl}' = any (public.slugs_reservados())) as ok`)
+    if (!r.ok) { validos = false; console.log('    inválido: ' + n + ' → ' + sl) }
+  }
+}
+prueba('todos los identificadores generados (con y sin sufijo) cumplen las reglas de la base', validos)
 
 console.log(`\nResultado: ${ok} pruebas correctas, ${fallos} fallidas.`)
 process.exit(fallos ? 1 : 0)

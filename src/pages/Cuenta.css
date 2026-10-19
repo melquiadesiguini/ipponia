@@ -192,6 +192,12 @@
   border-color: #92400e;
 }
 
+/* el botón principal (rojo) conserva el texto blanco */
+.cuenta-aviso .config-btn.config-btn-primario {
+  color: #ffffff;
+  border-color: #d7282f;
+}
+
 .cuenta-aviso p {
   margin: 0 0 0.4rem;
 }

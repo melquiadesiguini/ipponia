@@ -3,8 +3,11 @@ import useAuth from '../hooks/useAuth'
 import ConfigPagina from './ConfigPagina'
 import { actualizarOrganizacion, crearOrganizacion, ESTADOS_ORGANIZACION, listarOrganizaciones, urlIngreso } from '../lib/organizaciones'
 import { generarClave } from '../lib/usuarios'
+import { mensajeParaCliente } from '../lib/mensajeCliente'
+import { slugDesdeNombre } from '../lib/slug'
+import { copiarTexto } from '../lib/portapapeles'
 
-const NUEVA_VACIA = { slug: '', nombre: '', email_dueno: '', clave: '', vence_el: '' }
+const NUEVA_VACIA = { nombre: '', email_dueno: '', clave: '', vence_el: '' }
 const fechaLegible = (f) => (f ? new Date(`${f}T00:00:00`).toLocaleDateString('es-AR') : 'Sin vencimiento')
 
 // Clientes de la plataforma (solo superadmin): alta, estado, vencimiento y notas.
@@ -15,6 +18,8 @@ function ConfigOrganizaciones() {
   const [busqueda, setBusqueda] = useState('')
   const [panel, setPanel] = useState(null) // { tipo: 'nueva', valores } | { tipo: 'editar', id, nombreOriginal, valores }
   const [entrega, setEntrega] = useState(null) // datos para pasarle al cliente tras el alta
+  const [entregaCopiada, setEntregaCopiada] = useState(false)
+  const [copiada, setCopiada] = useState(null) // id de la organización cuyos datos se acaban de copiar
   const [trabajando, setTrabajando] = useState(false)
   const [error, setError] = useState('')
 
@@ -40,9 +45,32 @@ function ConfigOrganizaciones() {
 
   const cambiar = (campo, valor) => setPanel({ ...panel, valores: { ...panel.valores, [campo]: valor } })
 
+  const urlDueno = `${window.location.origin}${import.meta.env.BASE_URL}ingresar`
+
+  // Datos de la organización recién creada, para pasarle al dueño (con su contraseña, que no se vuelve a mostrar)
+  const copiarEntrega = async () => {
+    const ok = await copiarTexto(
+      mensajeParaCliente({ nombre: entrega.nombre, urlDueno, urlUsuarios: urlIngreso(entrega.slug), email: entrega.email, clave: entrega.clave })
+    )
+    if (ok) setEntregaCopiada(true)
+    else setError('No se pudo copiar. Seleccioná el texto de arriba y copialo a mano.')
+  }
+
+  // Datos de una organización ya creada: solo las direcciones (la contraseña no se guarda en ningún lado)
+  const copiarDatos = async (o) => {
+    const ok = await copiarTexto(
+      mensajeParaCliente({ nombre: o.nombre, urlDueno, urlUsuarios: urlIngreso(o.slug), vence: o.vence_el ? fechaLegible(o.vence_el) : null })
+    )
+    if (ok) {
+      setCopiada(o.id)
+      setTimeout(() => setCopiada((actual) => (actual === o.id ? null : actual)), 2000)
+    } else setError('No se pudo copiar al portapapeles.')
+  }
+
   const abrirNueva = () => {
     setError('')
     setEntrega(null)
+    setEntregaCopiada(false)
     setPanel({ tipo: 'nueva', valores: { ...NUEVA_VACIA, clave: generarClave() } })
   }
 
@@ -54,9 +82,10 @@ function ConfigOrganizaciones() {
       const v = panel.valores
       const r = await crearOrganizacion(v)
       if (r.ok) {
+        setEntregaCopiada(false)
         setEntrega({
           nombre: v.nombre.trim(),
-          slug: v.slug.trim().toLowerCase(),
+          slug: r.slug,
           email: v.email_dueno.trim(),
           clave: v.clave || null,
         })
@@ -97,10 +126,10 @@ function ConfigOrganizaciones() {
       {entrega && (
         <div className="cuenta-aviso">
           <p>
-            Organización <strong>{entrega.nombre}</strong> creada. Pasale esto al dueño (la contraseña no se vuelve a mostrar):
+            Organización <strong>{entrega.nombre}</strong> creada. Pasale esto al cliente (la contraseña no se vuelve a mostrar):
           </p>
           <p>
-            Ingreso del dueño: <span className="config-credencial">{`${window.location.origin}${import.meta.env.BASE_URL}ingresar`}</span>
+            Ingreso del dueño: <span className="config-credencial">{urlDueno}</span>
             <br />
             Email: <span className="config-credencial">{entrega.email}</span>
             {entrega.clave ? (
@@ -114,9 +143,17 @@ function ConfigOrganizaciones() {
             <br />
             Ingreso de sus usuarios: <span className="config-credencial">{urlIngreso(entrega.slug)}</span>
           </p>
-          <button type="button" className="config-btn" onClick={() => setEntrega(null)}>
-            Ya lo anoté
-          </button>
+          <div className="config-fila-acciones">
+            <button type="button" className="config-btn config-btn-primario" onClick={copiarEntrega}>
+              {entregaCopiada ? 'Copiado ✓' : 'Copiar'}
+            </button>
+            {/* solo se puede cerrar después de copiar: la contraseña no se vuelve a mostrar */}
+            {entregaCopiada && (
+              <button type="button" className="config-btn" onClick={() => setEntrega(null)}>
+                Cerrar
+              </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -126,32 +163,21 @@ function ConfigOrganizaciones() {
             <strong>{panel.tipo === 'nueva' ? 'Nueva organización' : `Editar ${panel.nombreOriginal}`}</strong>
           </p>
           <div className="config-formulario">
-            {panel.tipo === 'nueva' && (
-              <label>
-                Identificador (va en la dirección)
-                <input
-                  className="config-buscador"
-                  required
-                  autoFocus
-                  minLength={3}
-                  maxLength={40}
-                  pattern="[a-z0-9]([a-z0-9\-]*[a-z0-9])?"
-                  title="Minúsculas, números y guiones (sin empezar ni terminar con guion). No se puede cambiar después."
-                  autoCapitalize="none"
-                  spellCheck={false}
-                  value={v.slug}
-                  onChange={(e) => cambiar('slug', e.target.value)}
-                />
-              </label>
-            )}
             <label>
-              Nombre
-              <input className="config-buscador" required maxLength={80} value={v.nombre} onChange={(e) => cambiar('nombre', e.target.value)} />
+              {panel.tipo === 'nueva' ? 'Nombre de la organización' : 'Nombre'}
+              <input
+                className="config-buscador"
+                required
+                autoFocus={panel.tipo === 'nueva'}
+                maxLength={80}
+                value={v.nombre}
+                onChange={(e) => cambiar('nombre', e.target.value)}
+              />
             </label>
             {panel.tipo === 'nueva' ? (
               <>
                 <label>
-                  Email del dueño
+                  Email del cliente
                   <input
                     className="config-buscador"
                     type="email"
@@ -195,6 +221,9 @@ function ConfigOrganizaciones() {
               </label>
             )}
           </div>
+          {panel.tipo === 'nueva' && slugDesdeNombre(v.nombre) && (
+            <p className="config-ayuda">Sus usuarios van a entrar por: {urlIngreso(slugDesdeNombre(v.nombre))}</p>
+          )}
           <div className="config-fila-acciones">
             <button type="submit" className="config-btn config-btn-primario" disabled={trabajando}>
               {trabajando ? 'Guardando…' : panel.tipo === 'nueva' ? 'Crear organización' : 'Guardar'}
@@ -276,6 +305,14 @@ function ConfigOrganizaciones() {
                         }}
                       >
                         ✏️
+                      </button>
+                      <button
+                        type="button"
+                        title="Copiar los datos para pasarle al cliente"
+                        aria-label={`Copiar los datos de ${o.nombre} para pasarle al cliente`}
+                        onClick={() => copiarDatos(o)}
+                      >
+                        {copiada === o.id ? '✅' : '📋'}
                       </button>
                       <button
                         type="button"

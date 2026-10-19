@@ -7,9 +7,9 @@
 //   - version.json y sw.js siempre van a la red (así se detectan las versiones nuevas).
 //   - Una versión nueva NO reemplaza a la actual en medio de una sesión: espera a que el usuario toque
 //     "Actualizar" en el aviso de la app (que manda el mensaje 'saltear-espera'), o a que se cierre la app.
-const CACHE = 'ipponia-1792438605289'
+const CACHE = 'ipponia-1792439979525'
 const BASE = '/ipponia/'
-const ARCHIVOS = ["/ipponia/apple-touch-icon.png","/ipponia/assets/index-pj-yvjoN.css","/ipponia/assets/index-yte3v9cM.js","/ipponia/assets/ipponia-logo-DM6M5BcB.png","/ipponia/assets/ipponia-logo-oscuro-C_36sNtq.png","/ipponia/assets/ipponia-marca-BGChaFNa.png","/ipponia/assets/ipponia-marca-oscuro-bI2vLcqO.png","/ipponia/favicon-32.png","/ipponia/favicon.png","/ipponia/favicon.svg","/ipponia/icon-192.png","/ipponia/icon-512.png","/ipponia/icons.svg","/ipponia/index.html","/ipponia/manifest.webmanifest","/ipponia/og-image.png"] // se reemplaza por la lista real al compilar
+const ARCHIVOS = ["/ipponia/apple-touch-icon.png","/ipponia/assets/index-D5pXBPV2.js","/ipponia/assets/index-DJAsMmnd.css","/ipponia/assets/ipponia-logo-DM6M5BcB.png","/ipponia/assets/ipponia-logo-oscuro-C_36sNtq.png","/ipponia/assets/ipponia-marca-BGChaFNa.png","/ipponia/assets/ipponia-marca-oscuro-bI2vLcqO.png","/ipponia/favicon-32.png","/ipponia/favicon.png","/ipponia/favicon.svg","/ipponia/icon-192.png","/ipponia/icon-512.png","/ipponia/index.html","/ipponia/manifest.webmanifest","/ipponia/og-image.png"] // se reemplaza por la lista real al compilar
 const CACHE_TIPOGRAFIAS = 'tipografias-ipponia' // no empieza con "ipponia-": sobrevive a las versiones
 const SITIOS_TIPOGRAFIAS = ['fonts.googleapis.com', 'fonts.gstatic.com']
 
