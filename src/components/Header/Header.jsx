@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import logoClaro from '../../assets/images/ipponia-logo.png' // cinturón negro (tema claro)
 import logoOscuro from '../../assets/images/ipponia-logo-oscuro.png' // cinturón blanco (tema oscuro)
 import useTheme from '../../hooks/useTheme'
@@ -15,6 +15,11 @@ function Header() {
   const nombreCuenta = perfil?.nombre_visible || perfil?.nombre_usuario || user?.email
   const [menuAbierto, setMenuAbierto] = useState(false)
   const menuRef = useRef(null)
+  // En tablet y celular el menú se contrae detrás de un botón
+  // (se guarda en qué página se abrió: al navegar a otra, vuelve a quedar contraído)
+  const [abiertaEn, setAbiertaEn] = useState(null)
+  const { pathname } = useLocation()
+  const navAbierta = abiertaEn === pathname
 
   // Cierra el menú al tocar fuera de él o con Escape
   useEffect(() => {
@@ -41,7 +46,17 @@ function Header() {
           />
           <h1 className={s.logo}>IPPONIA</h1>
         </Link>
-        <div className={`${s.headerContent2}`}>
+        <button
+          type="button"
+          className={s.hamburguesa}
+          onClick={() => setAbiertaEn(navAbierta ? null : pathname)}
+          aria-expanded={navAbierta}
+          aria-controls="menu-principal"
+          aria-label={navAbierta ? 'Cerrar el menú' : 'Abrir el menú'}
+        >
+          {navAbierta ? '✕' : '☰'}
+        </button>
+        <div className={`${s.headerContent2} ${navAbierta ? s.navAbierta : ''}`} id="menu-principal">
           <nav className={s.containerNav}>
             <div className={s.containerNav2}>
               <Link to="/">Home</Link>

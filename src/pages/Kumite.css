@@ -1158,3 +1158,18 @@
     font-size: 0.6rem;
   }
 }
+
+/* Botón de pantalla completa: solo en tablet y celular, a la derecha (la pantalla pública está a la izquierda) */
+.btn-display.btn-pantalla-completa {
+  display: none;
+}
+
+@media (max-width: 1024px) {
+  .btn-display.btn-pantalla-completa {
+    display: flex;
+    left: auto;
+    right: 1rem;
+    bottom: 1rem;
+    padding: 0.5rem 0.9rem;
+  }
+}

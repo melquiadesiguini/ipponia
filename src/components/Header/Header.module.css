@@ -227,3 +227,78 @@ button{
     text-transform: uppercase;
     color: var(--text-secondary);
 }
+
+/* -------------------- MENÚ CONTRAÍDO (tablet y celular) -------------------- */
+.hamburguesa {
+    display: none;
+}
+
+@media (max-width: 1024px) {
+    .headerContent {
+        flex-wrap: wrap;
+        justify-content: space-between;
+    }
+    .hamburguesa {
+        display: block;
+        margin-left: auto;
+        padding: 2px 10px;
+        font-size: 1.3rem;
+        line-height: 1.4;
+        color: #ffffff;
+        border: 1px solid rgba(128, 128, 128, 0.4);
+        cursor: pointer;
+    }
+    .headerContent2 {
+        display: none;
+        flex: 0 0 100%;
+        min-width: 100%;
+    }
+    /* abierto: se despliega encima del contenido, sin empujarlo */
+    .headerContent2.navAbierta {
+        display: flex;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        min-width: 0;
+        padding: 0 12px;
+        background: var(--bg-surface);
+        color: var(--text-primary);
+        border-bottom: 1px solid var(--border-color);
+        box-shadow: 0 8px 24px var(--shadow-color);
+        max-height: calc(100dvh - 3.5rem);
+        overflow-y: auto;
+    }
+    .headerContent2.navAbierta nav a {
+        color: var(--text-primary);
+    }
+    .containerNav2 {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.25rem;
+        padding: 0.4rem 0 0.6rem;
+    }
+    .containerNav2 > a,
+    .menuConfig > a {
+        display: block;
+        padding: 0.7rem 0.5rem;
+        border-bottom: 1px solid var(--header-border);
+    }
+    .containerNav2 > a::after,
+    .menuConfig > a::after {
+        display: none;
+    }
+    .themeToggle {
+        align-self: flex-start;
+        margin-top: 0.3rem;
+    }
+    /* la lista de Configuración se despliega dentro del menú, no flotando */
+    .menuConfigLista {
+        position: static;
+        padding-top: 0;
+    }
+    .menuConfigCaja {
+        box-shadow: none;
+        margin: 0.25rem 0 0.25rem 0.75rem;
+    }
+}

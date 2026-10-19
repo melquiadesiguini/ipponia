@@ -28,8 +28,27 @@ const DURACION_ENCHO_SEN = 60 * 1000
 function Kumite({ modoKansa = false, sistemaJueces = null }) {
   // El tablero ocupa el 100 % del alto de la pantalla (debajo del encabezado), sin scroll:
   // se achica si no entra y se agranda si sobra espacio.
-  const alturaHeader = useAlturaHeader()
+  // En tablet y celular se puede pasar a pantalla completa: se ocultan el encabezado y el pie
+  const [pantallaCompleta, setPantallaCompleta] = useState(false)
+  const alturaHeader = useAlturaHeader(!pantallaCompleta)
   const { contentRef, scale } = useFitToScreen(true, alturaHeader + PADDING_VERTICAL_TABLERO, false, ESCALA_MAXIMA_TABLERO)
+
+  // Si el navegador sale de pantalla completa por su cuenta (Esc, gesto), se vuelve a mostrar el encabezado
+  useEffect(() => {
+    const alCambiar = () => {
+      if (!document.fullscreenElement) setPantallaCompleta(false)
+    }
+    document.addEventListener('fullscreenchange', alCambiar)
+    return () => document.removeEventListener('fullscreenchange', alCambiar)
+  }, [])
+
+  // Pide pantalla completa al navegador; donde no existe (iPhone) alcanza con ocultar encabezado y pie
+  const alternarPantallaCompleta = () => {
+    const entrar = !pantallaCompleta
+    setPantallaCompleta(entrar)
+    if (entrar) document.documentElement.requestFullscreen?.().catch(() => {})
+    else if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {})
+  }
 
   const [categoria, setCategoria] = useState('')
   const { sinTorneo } = useTorneoAbierto()
@@ -339,8 +358,17 @@ function Kumite({ modoKansa = false, sistemaJueces = null }) {
   }, !modoKansa)
   return (
     <>
-      <Header />
+      {!pantallaCompleta && <Header />}
       <main className="kumite-container" style={{ height: `calc(100dvh - ${alturaHeader}px)` }}>
+        <button
+          type="button"
+          className="btn-display btn-pantalla-completa"
+          onClick={alternarPantallaCompleta}
+          title={pantallaCompleta ? 'Salir de pantalla completa' : 'Ocultar el menú y el pie de página'}
+        >
+          {pantallaCompleta ? '⤡ Salir de pantalla completa' : '⤢ Pantalla completa'}
+        </button>
+
         {!modoKansa && (
           <button
             type="button"
@@ -522,7 +550,7 @@ function Kumite({ modoKansa = false, sistemaJueces = null }) {
           </div>
         )}
       </main>
-      <Footer />
+      {!pantallaCompleta && <Footer />}
     </>
   )
 }
