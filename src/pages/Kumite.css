@@ -599,12 +599,6 @@
   gap: 0;
 }
 
-@media (max-width: 768px) {
-  .kumite-marcadores {
-    grid-template-columns: 1fr;
-  }
-}
-
 /* Estilos del Marcador */
 .marcador {
   min-width: 0;
@@ -620,13 +614,6 @@
 
 .marcador:nth-child(2) {
   border-left: 1px solid var(--border-color);
-}
-
-@media (max-width: 768px) {
-  .marcador:nth-child(2) {
-    border-left: none;
-    border-top: 1px solid var(--border-color);
-  }
 }
 
 .marcador-titulo {
@@ -958,6 +945,81 @@
 [data-theme='dark'] .marcador-blue .btn-salida-activa:hover {
   background-color: #ffffff;
   color: #111111;
+}
+
+/* Shiro y Aka siempre lado a lado (tablet, computadora o celular); en pantallas chicas se achica el relleno */
+@media (max-width: 768px) {
+  .marcador {
+    padding: 0.75rem;
+  }
+
+  .marcador-titulo {
+    font-size: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .marcador-tecnicas {
+    gap: 0.6rem;
+    margin-bottom: 1rem;
+  }
+
+  .tecnica-row {
+    padding: 0.5rem;
+  }
+
+  .tecnica-controls {
+    gap: 0.4rem;
+  }
+
+  .faltas-table {
+    min-width: 0;
+  }
+
+  .faltas-table th:first-child,
+  .faltas-table td.falta-nombre {
+    width: 4rem;
+  }
+
+  .total-numero {
+    font-size: 2.25rem;
+  }
+
+  .marcador-salidas {
+    gap: 0.3rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .marcador {
+    padding: 0.5rem;
+  }
+
+  .tecnica-row {
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+
+  .btn-control {
+    width: 1.75rem;
+    height: 1.75rem;
+  }
+
+  .tecnica-valor {
+    width: 1.25rem;
+    font-size: 1.1rem;
+  }
+
+  .total-numero {
+    font-size: 2rem;
+  }
+
+  .btn-salida-motivo {
+    font-size: 0.6rem;
+  }
+
+  .btn-salida-detalle {
+    font-size: 0.5rem;
+  }
 }
 
 /* Footer de Kumite */

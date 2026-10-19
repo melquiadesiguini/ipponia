@@ -300,3 +300,66 @@ Sub-etapas: **3a** sesión, permisos, ingreso por organización · **3b** Usuari
 - [x] Historial: columna y filtro por torneo ("Sin torneo" incluido), exportación con la columna Torneo; al corregir un resultado se lo puede asignar o pasar a otro torneo (sirve para ordenar los resultados anteriores).
 - [x] Pruebas de base de datos: **194 correctas**.
 - [ ] Pendiente a decidir: hoy cualquier usuario con permiso para cargar puede cargar en el torneo abierto de su organización. Si se quiere que alguien asignado solo a un torneo no pueda cargar en otro, hay que ajustar la regla de seguridad (RLS) para que use `tiene_permiso(torneo, área, permiso)`.
+
+## 18. Propuesta comercial: planes, módulos y formas de pago (16/10/2026)
+
+**Estado: propuesta para discutir.** Los precios son hipótesis de partida, no están validados con clientes. Todavía no hay cambios en el código ni en la base.
+
+### 18.1 Dos ejes independientes
+- **Qué contratan:** un plan cerrado (Básico, Estándar o Premium) o módulos sueltos.
+- **Cómo pagan:** por mes o por torneo.
+- Los planes son combos de módulos con descuento: quien arma módulos sueltos nunca paga menos que un plan, y el plan siempre le conviene.
+
+### 18.2 Qué se vende
+- **Módulos de competencia:** Kata, Kobudo, Destreza y Kumite.
+- **Funciones:** pantalla pública, historial con exportación, corrección del historial con auditoría, usuarios y roles por torneo y área, y jueces conectados (todavía no existe).
+
+| | Básico | Estándar | Premium |
+|---|---|---|---|
+| Módulos de competencia | 2 a elección | los 4 | los 4 |
+| Pantalla pública | sí | sí | sí |
+| Historial y exportación | solo ver y exportar | con corrección y auditoría | con corrección y auditoría |
+| Usuarios, roles y áreas | 1 usuario administrador | roles por torneo y área | roles por torneo y área |
+| Jueces conectados | no | no | sí (cuando esté) |
+| Soporte | por mail | por mail | prioritario |
+
+### 18.3 Precios de partida (USD)
+
+| | Básico | Estándar | Premium |
+|---|---|---|---|
+| **Por mes** | 15 | 30 | 60 |
+| **Por torneo** | 45 | 90 | 180 |
+
+- Regla: el precio por torneo equivale a unos 3 meses de cuota. Con 4 o más torneos al año conviene la cuota mensual; con menos, conviene pagar por torneo.
+- **Modular (a la carte):** cuota base de 8 por mes (24 por torneo) más 8 por mes (24 por torneo) por cada módulo. Con los 4 módulos da 40 por mes, más caro que el Estándar (30).
+- **Piso de costos:** Supabase Pro + dominio + correo ≈ USD 27 por mes. Con 2 o 3 clientes Estándar se cubre la infraestructura.
+
+### 18.4 Infraestructura que se contrata (precios aproximados, verificar)
+- Dominio (`ipponia.com` u otro): ~USD 10–15 por año. Hace falta para enviar mails a terceros (invitaciones y recuperación de contraseña).
+- Correo (SMTP, p. ej. Resend): plan gratis de unos 3.000 mails por mes; luego desde ~USD 20 por mes.
+- Supabase Pro: ~USD 25 por mes. El plan gratis se pausa por inactividad y no tiene copias de seguridad, así que con clientes reales hay que pasar a Pro.
+- GitHub Pages: gratis, acepta dominio propio.
+- Orden recomendado al llegar el primer cliente que paga: Supabase Pro, dominio, correo.
+
+### 18.5 Argentina ahora, el mundo después
+- Precios fijados en USD; en Argentina se cobra el equivalente en pesos (Mercado Pago o transferencia).
+- Para el exterior: procesador que actúe como "merchant of record" (Paddle o Lemon Squeezy), que cobra, factura y maneja los impuestos de cada país. Verificar qué aceptan a vendedores argentinos.
+- Consultar con un contador cómo facturar antes de cobrar al primer cliente.
+- Para abrirlo al mundo hay que agregar el idioma inglés (hoy todo está en español).
+- Un `.com` sirve para ambos mercados; un `.com.ar` se vería solo local.
+
+### 18.6 Qué soporta hoy el sistema y qué hay que construir
+- **Ya existe:** `planes` y `plan_permisos` (hoy un solo plan, `estandar`, con todos los permisos) y `tiene_permiso` que cruza el plan de la organización con los permisos del rol.
+- **Por construir:**
+  1. Tabla de módulos contratados por organización y qué permisos habilita cada módulo; `tiene_permiso` pasa a exigir plan **y** módulo.
+  2. Planes `basico` y `premium` en la base (con la forma de pago por mes o por torneo).
+  3. Panel del superadmin para cambiar el plan o los módulos de cada organización.
+  4. Si se quieren límites reales (usuarios, áreas), agregarlos: hoy no se controlan.
+  5. Cobro manual al principio (el superadmin activa o desactiva); procesador de pagos más adelante.
+- Toda la parte de base de datos va en una migración versionada con sus tests.
+
+### 18.7 Decisiones abiertas
+- [ ] ¿Precios distintos para Argentina y para el exterior?
+- [ ] ¿Cuántos usuarios y áreas tiene un torneo típico del cliente actual? (define si el Básico se limita también por usuarios o áreas)
+- [ ] Precio de "cliente fundador" para el cliente actual, antes de que se acostumbre a que sea gratis.
+- [ ] Por mes, por torneo, o ambas formas desde el principio.
