@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
+import { iniciarServiceWorker } from './lib/serviceWorker'
 
 // Si el navegador abrió una versión vieja guardada en caché, la recarga una vez
 // con la versión publicada (evita tener que agregar ?v=N a mano en la URL).
@@ -23,10 +24,9 @@ async function buscarVersionNueva() {
 if (import.meta.env.PROD) buscarVersionNueva()
 
 // Modo sin conexión: el service worker deja la app guardada en el dispositivo para abrirla sin internet
-if (import.meta.env.PROD && 'serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`).catch(() => {})
-  })
+// (y avisa cuando hay una versión nueva)
+if (import.meta.env.PROD) {
+  window.addEventListener('load', () => iniciarServiceWorker(`${import.meta.env.BASE_URL}sw.js`))
 }
 
 createRoot(document.getElementById('root')).render(

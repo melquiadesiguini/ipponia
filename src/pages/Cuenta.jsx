@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import Header from '../components/Header/Header'
 import Footer from '../components/Footer/Footer'
+import InstalarApp from '../components/InstalarApp/InstalarApp'
 import useAuth from '../hooks/useAuth'
 import { PERMISOS, seccionesVisibles } from '../lib/permisos'
 import './Cuenta.css'
@@ -53,6 +54,7 @@ function Cuenta() {
           <p className="cuenta-nota">Todavía no tenés permisos asignados. Pedile al administrador que te asigne un rol.</p>
         )}
         <p className="cuenta-nota">Los resultados que guardes se almacenan en la nube, en tu organización.</p>
+        <InstalarApp />
         <div className="cuenta-acciones">
           {seccionesConfig.length > 0 && (
             <Link to="/configuracion" className="cuenta-boton cuenta-boton-primario">

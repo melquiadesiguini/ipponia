@@ -397,3 +397,14 @@ Sub-etapas: **3a** sesión, permisos, ingreso por organización · **3b** Usuari
 - Las tipografías de Google no se guardan: sin internet se usa la tipografía del sistema.
 - Instalar la app en la pantalla de inicio (PWA) mejora que el sistema operativo no borre lo guardado; el manifiesto ya existe.
 - Probar en tablet real: abrir con internet, activar modo avión, recargar y cargar resultados.
+
+## 20. Instalar Ipponia como app y mejoras del modo sin conexión (19/10/2026)
+
+- **Manifiesto** (`public/manifest.webmanifest`): `id`, íconos separados para `any` y `maskable`, orientación libre, categorías y **accesos directos** (mantener apretado el ícono en Android: Kumite, Kata, Kobudo, Destreza). En `index.html`, las etiquetas para iPhone y iPad (título, modo app, barra de estado).
+- **Botón "Instalar Ipponia"** en Mi cuenta (`InstalarApp`): en Chrome y Edge usa el aviso del navegador (`beforeinstallprompt`, que se escucha desde que carga la página); en iPhone y iPad (reconocidos aunque el iPad se presente como Mac) explica "Compartir → Agregar a pantalla de inicio"; en otros navegadores indica el menú. Si ya está instalada, lo dice.
+- **Aviso de versión nueva** (`AvisoActualizacion`, `lib/serviceWorker.js`): la versión nueva se descarga sola, pero **no se activa en medio de una sesión** (no se corta un combate ni se rompe la pantalla abierta). Aparece "Hay una versión nueva de Ipponia · Actualizar · Más tarde". Se busca cada 30 minutos y al volver a la app (una tablet puede estar abierta todo el día). Si nadie toca "Actualizar", se activa sola al cerrar la app.
+- **Tipografías sin internet:** el service worker guarda las tipografías de Google la primera vez que se descargan y las usa después (en un caché aparte, que sobrevive a las versiones).
+- **Pruebas:** `npm run test:offline` ahora tiene **47 correctas** (espera de la versión nueva, mensaje "saltear-espera", tipografías y detección de iPhone/iPad).
+- **Probado a mano:** el botón de instalación aparece con el aviso del navegador y lo dispara; en Mi cuenta se ve la explicación según el dispositivo.
+- **Sin verificar en un navegador real:** el registro del service worker y el aviso de versión nueva (el navegador integrado no deja registrarlo). Probar en tablet: instalar, publicar una versión nueva y ver el aviso.
+- **Límite:** en iPhone y iPad el sistema puede borrar lo guardado de una web que no se usa por semanas; instalada en la pantalla de inicio es más estable.

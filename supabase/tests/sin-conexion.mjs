@@ -9,6 +9,7 @@ import { dirname, join } from 'node:path'
 import vm from 'node:vm'
 import { crearCola, enviarPendientes } from '../../src/lib/colaResultados.js'
 import { esErrorDeRed, mensajeDe } from '../../src/lib/errores.js'
+import { esDispositivoApple } from '../../src/lib/instalacion.js'
 
 let ok = 0
 let fallos = 0
@@ -143,6 +144,14 @@ console.log('\n3) Envío de los pendientes al volver internet')
   prueba('una excepción de red se trata como falta de conexión', r.sinRed && cola.resumen().total === 1)
 }
 
+// ---------------------------------------------------------------- 3b) Instalar como app
+console.log('\n3b) Instalar como app')
+prueba('un iPhone se reconoce', esDispositivoApple('Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)', 'iPhone', 5))
+prueba('un iPad antiguo se reconoce', esDispositivoApple('Mozilla/5.0 (iPad; CPU OS 12_0 like Mac OS X)', 'iPad', 5))
+prueba('un iPad nuevo (se presenta como Mac, pero es táctil) se reconoce', esDispositivoApple('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)', 'MacIntel', 5))
+prueba('una Mac de verdad no se confunde con un iPad', !esDispositivoApple('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)', 'MacIntel', 0))
+prueba('Android y Windows no son Apple', !esDispositivoApple('Mozilla/5.0 (Linux; Android 14; Pixel 8)', 'Linux armv81', 5) && !esDispositivoApple('Mozilla/5.0 (Windows NT 10.0; Win64; x64)', 'Win32', 0))
+
 // ---------------------------------------------------------------- 4) Service worker
 console.log('\n4) Service worker: la app abre sin internet')
 {
@@ -180,7 +189,8 @@ console.log('\n4) Service worker: la app abre sin internet')
     return respuesta(`red ${p.url}`)
   }
   const oyentes = {}
-  const self = { addEventListener: (t, f) => { oyentes[t] = f }, skipWaiting: async () => {}, clients: { claim: async () => {} }, location: { origin: ORIGEN } }
+  let saltoEspera = 0
+  const self = { addEventListener: (t, f) => { oyentes[t] = f }, skipWaiting: async () => { saltoEspera++ }, clients: { claim: async () => {} }, location: { origin: ORIGEN } }
   vm.runInNewContext(codigo, { self, caches, fetch: fetchFalso, URL, Promise, TypeError })
 
   const evento = (p) => ({ request: p, respuesta: undefined, espera: undefined, respondWith(x) { this.respuesta = x }, waitUntil(x) { this.espera = x } })
@@ -190,6 +200,11 @@ console.log('\n4) Service worker: la app abre sin internet')
   oyentes.install(instalar)
   await instalar.espera
   prueba('al instalar, guarda todos los archivos de la versión', ARCHIVOS.every((u) => almacenes.get('ipponia-NUEVA').has(`${ORIGEN}${u}`)))
+  prueba('una versión nueva NO reemplaza a la actual por su cuenta (espera el "Actualizar" del usuario)', saltoEspera === 0)
+  oyentes.message({ data: 'otra cosa' })
+  prueba('un mensaje desconocido no la activa', saltoEspera === 0)
+  oyentes.message({ data: 'saltear-espera' })
+  prueba('al tocar "Actualizar" (mensaje saltear-espera) sí toma el control', saltoEspera === 1)
   const activar = evento()
   oyentes.activate(activar)
   await activar.espera
@@ -226,9 +241,27 @@ console.log('\n4) Service worker: la app abre sin internet')
     oyentes.fetch(e)
     prueba(`${url} siempre va a la red (no se intercepta)`, e.respuesta === undefined)
   }
+  // tipografías de Google: se guardan la primera vez y después se ven sin internet
+  const css = 'https://fonts.googleapis.com/css2?family=Inter'
+  const woff = 'https://fonts.gstatic.com/s/inter/v13/abc.woff2'
+  hayRed = true
+  e = evento({ url: css, method: 'GET', mode: 'no-cors' })
+  oyentes.fetch(e)
+  await e.respuesta
+  e = evento({ url: woff, method: 'GET', mode: 'cors' })
+  oyentes.fetch(e)
+  await e.respuesta
+  prueba('las tipografías se guardan al descargarlas por primera vez', almacenes.get('tipografias-ipponia')?.has(css) && almacenes.get('tipografias-ipponia')?.has(woff))
+  hayRed = false
+  e = evento({ url: woff, method: 'GET', mode: 'cors' })
+  oyentes.fetch(e)
+  prueba('sin internet, las tipografías salen de lo guardado', (await e.respuesta).texto === `red ${woff}`)
+  hayRed = true
+  prueba('las tipografías guardadas sobreviven a las versiones nuevas de la app', almacenes.has('tipografias-ipponia'))
+
   e = evento({ url: 'https://abc.supabase.co/rest/v1/resultados_jurado', method: 'GET', mode: 'cors' })
   oyentes.fetch(e)
-  prueba('lo que no es de este sitio (Supabase, tipografías) no se toca', e.respuesta === undefined)
+  prueba('lo que no es de este sitio ni una tipografía (Supabase) no se toca', e.respuesta === undefined)
   e = evento(pedido('/ipponia/api', { method: 'POST' }))
   oyentes.fetch(e)
   prueba('los envíos (POST) no se interceptan', e.respuesta === undefined)
