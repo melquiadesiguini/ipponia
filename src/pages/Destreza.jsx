@@ -18,6 +18,9 @@ import useFitToScreen from '../hooks/useFitToScreen'
 import useAtajosCronometro from '../hooks/useAtajosCronometro'
 import Timer from '../components/Timer/Timer'
 import { usePublishLive, openPublicDisplay } from '../hooks/usePublicDisplay'
+import { registrarEnRanking } from '../lib/ranking'
+import useRankingMesa from '../hooks/useRankingMesa'
+import { RankingMesa } from '../components/Ranking/Ranking'
 import './Kata.css'
 import './Kumite.css' // estilos del cronómetro (compartidos con Kumite)
 
@@ -226,6 +229,9 @@ function Destreza() {
     savedCompetitions.push(data)
     localStorage.setItem('competitions', JSON.stringify(savedCompetitions))
 
+    // suma el resultado al ranking de la pantalla pública (se ve entre competidores)
+    registrarEnRanking({ modulo: 'Destreza', area: data.area, ronda: data.ronda, competidor: data.competitor ?? competitor, kata: data.kata ?? null, puntaje: data.finalScore, sistema: data.judgeSystem, menor: data.lowest, mayor: data.highest })
+
     setEstadoGuardado('Guardando…')
     guardarResultado({ modulo: 'destreza', payload: data }).then((r) => {
       setEstadoGuardado(r.ok ? 'Resultado guardado en la nube.' : mensajeGuardado(r))
@@ -239,18 +245,22 @@ function Destreza() {
   }
 
   // Pasa a la ronda siguiente con los mismos jueces: sube el número de ronda y queda listo el próximo competidor
-  const siguienteRonda = () => {
-    avanzarRonda()
+  const cerrarResultado = () => {
     resetForm()
     setShowResults(false)
   }
 
   // Termina la categoría: se borran la ronda y los jueces, y se vuelve a elegir el sistema de jueces
-  const finalizarCategoria = () => {
+  const cerrarCategoria = () => {
     limpiarRonda()
     setJudgeNames({ judge1: '', judge2: '', judge3: '', judge4: '', judge5: '' })
     changeJudgeSystem(null)
   }
+
+  // Ranking de la mesa: "Siguiente ronda" muestra los 8 mejores; "Finalizar categoría" muestra el podio (o el empate a resolver)
+  const rankingMesa = useRankingMesa({ avanzar: avanzarRonda, cerrarResultado, cerrarCategoria })
+  const siguienteRonda = rankingMesa.siguienteRonda
+  const finalizarCategoria = rankingMesa.finalizar
 
   // Control de cronómetro
   const controlTimer = (accion) => {
@@ -326,6 +336,20 @@ function Destreza() {
         >
           🖥️ Pantalla pública
         </button>
+
+        {/* Mientras se arma el ranking, la mesa puede verlo cuando quiera (los 8 mejores) */}
+        {rankingMesa.hayRanking && (
+          <button
+            type="button"
+            className="btn-display btn-ver-ranking"
+            onClick={rankingMesa.verRanking}
+            title="Ver el ranking de la ronda (los 8 mejores)"
+          >
+            🏆 Ranking
+          </button>
+        )}
+
+        <RankingMesa vista={rankingMesa.vista} onCerrar={rankingMesa.cerrarVista} onConfirmar={rankingMesa.confirmarCategoria} />
 
         {/* En pantalla completa el contenido se ajusta (escala) para ocupar justo el
             100% del ancho y del alto de la pantalla */}

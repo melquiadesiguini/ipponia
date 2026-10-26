@@ -15,6 +15,7 @@ import { calcularPuntaje } from '../../src/lib/jurado.js'
 import { valoresIniciales, validar, cambiosDesdeValores, calcularDeValores } from '../../src/lib/editarResultado.js'
 import { mensajeParaCliente } from '../../src/lib/mensajeCliente.js'
 import { slugDesdeNombre, conSufijo, SLUGS_RESERVADOS } from '../../src/lib/slug.js'
+import { agregarResultado, posiciones, puestosEmpatados, resultadoDeCategoria, marcarCierre, leerRanking, registrarEnRanking, limpiarRanking, estaVencido } from '../../src/lib/ranking.js'
 
 const raiz = join(dirname(fileURLToPath(import.meta.url)), '..')
 const leer = (ruta) => readFileSync(join(raiz, ruta), 'utf8')
@@ -640,6 +641,132 @@ for (const n of nombresPrueba) {
   }
 }
 prueba('todos los identificadores generados (con y sin sufijo) cumplen las reglas de la base', validos)
+
+// ---------------------------------------------------------------- 13) Ranking de la pantalla pública
+console.log('\n13) Ranking de la pantalla pública')
+const grupo = { modulo: 'Kata', area: 2, ronda: 1 }
+let rk = null
+const pun = [['Lucía', 28.6], ['Mateo', 28.2], ['Camila', 27.9], ['Tomás', 27.4], ['Valentina', 27.1], ['Joaquín', 26.8], ['Sofía', 26.5], ['Bruno', 26.1], ['Agustina', 25.9], ['Nico', 25.5]]
+pun.forEach(([competidor, puntaje], i) => { rk = agregarResultado(rk, { ...grupo, competidor, puntaje, ahora: 1000 + i }) })
+const top = posiciones(rk.filas)
+prueba('se muestran solo los 8 mejores, de mayor a menor puntaje', top.length === 8 && top[0].competidor === 'Lucía' && top[7].competidor === 'Bruno' && !top.some((f) => f.competidor === 'Nico'))
+prueba('los puestos van del 1 al 8', top.map((f) => f.puesto).join() === '1,2,3,4,5,6,7,8')
+prueba('el último en puntuar queda marcado (para la etiqueta NUEVO)', rk.ultimo === 'nico')
+const orden = (arr) => arr.reduce((r, [c, p], i) => agregarResultado(r, { ...grupo, competidor: c, puntaje: p, ahora: 100 + i }), null)
+const empatados = posiciones(orden([['A', 28], ['B', 27], ['C', 27], ['D', 26]]).filas)
+prueba('los empates comparten puesto y el siguiente salta (1, 2, 2, 4)', empatados.map((f) => f.puesto).join() === '1,2,2,4')
+prueba('entre empatados va primero quien puntuó antes', empatados[1].competidor === 'B' && empatados[2].competidor === 'C')
+prueba('un empate triple en el primer puesto (1, 1, 1, 4)', posiciones(orden([['A', 9], ['B', 9], ['C', 9], ['D', 8]]).filas).map((f) => f.puesto).join() === '1,1,1,4')
+prueba('los decimales con ruido de coma flotante empatan (0.1 + 0.2 = 0.3)', posiciones(orden([['A', 0.1 + 0.2], ['B', 0.3]]).filas).map((f) => f.puesto).join() === '1,1')
+const corregido = agregarResultado(orden([['Ana', 20], ['Beto', 25]]), { ...grupo, competidor: '  ana ', puntaje: 27, ahora: 500 })
+prueba('si el mismo competidor puntúa de nuevo, vale el último puntaje (sin repetirlo ni distinguir mayúsculas)', corregido.filas.length === 2 && posiciones(corregido.filas)[0].competidor === 'ana' && posiciones(corregido.filas)[0].puntaje === 27)
+const otraRonda = agregarResultado(rk, { ...grupo, ronda: 2, competidor: 'Zoe', puntaje: 10, ahora: 9000 })
+prueba('el primer puntaje de otra ronda empieza un ranking nuevo', otraRonda.filas.length === 1 && otraRonda.ronda === 2)
+prueba('lo mismo con otro módulo u otra área', agregarResultado(rk, { ...grupo, modulo: 'Kobudo', competidor: 'Zoe', puntaje: 10 }).filas.length === 1 && agregarResultado(rk, { ...grupo, area: 3, competidor: 'Zoe', puntaje: 10 }).filas.length === 1)
+prueba('sin nombre no se pierde el resultado ni se pisa con otro', agregarResultado(agregarResultado(null, { ...grupo, competidor: '', puntaje: 5, ahora: 1 }), { ...grupo, competidor: '', puntaje: 6, ahora: 2 }).filas.length === 2)
+prueba('con pocos competidores se muestran los que hay', posiciones(orden([['A', 5]]).filas).length === 1 && posiciones([]).length === 0)
+
+// desempate con 5 jueces: mismo puntaje final -> el menor puntaje más alto -> el mayor puntaje más alto -> empate
+const con5 = (arr) => arr.reduce((r, [c, p, menor, mayor], i) => agregarResultado(r, { ...grupo, competidor: c, puntaje: p, sistema: 5, menor, mayor, ahora: 100 + i }), null)
+const d1 = posiciones(con5([['A', 28, 8.8, 9.7], ['B', 28, 9.0, 9.6], ['C', 27, 9.9, 9.9]]).filas)
+prueba('5 jueces: a igual puntaje gana quien tiene el menor puntaje más alto (aunque haya puntuado después)', d1[0].competidor === 'B' && d1[1].competidor === 'A' && d1.map((f) => f.puesto).join() === '1,2,3' && !d1.some((f) => f.empatado))
+const d2 = posiciones(con5([['A', 28, 9.0, 9.4], ['B', 28, 9.0, 9.7]]).filas)
+prueba('si los menores son iguales, gana quien tiene el mayor puntaje más alto', d2[0].competidor === 'B' && d2.map((f) => f.puesto).join() === '1,2' && !d2.some((f) => f.empatado))
+const d3 = posiciones(con5([['A', 28, 9.0, 9.7], ['B', 28, 9.0, 9.7], ['C', 27, 9.5, 9.6]]).filas)
+prueba('si también el mayor es igual, es empate: comparten puesto y quedan marcados', d3.map((f) => f.puesto).join() === '1,1,3' && d3[0].empatado && d3[1].empatado && !d3[2].empatado)
+prueba('y se informa en qué puesto hay que desempatar', JSON.stringify(puestosEmpatados(d3)) === '[1]')
+prueba('el desempate no cambia el orden por puntaje final (28 antes que 27 aunque el 27 tenga mejores extremos)', d1[2].competidor === 'C')
+const t3 = posiciones(orden([['A', 20], ['B', 20]]).filas)
+prueba('con 3 jueces no hay criterio: el empate queda marcado tal cual', t3.map((f) => f.puesto).join() === '1,1' && t3.every((f) => f.empatado))
+const mixto = posiciones([agregarResultado(null, { ...grupo, competidor: 'A', puntaje: 28, sistema: 5, menor: 9, mayor: 9.5, ahora: 1 }).filas[0], agregarResultado(null, { ...grupo, competidor: 'B', puntaje: 28, sistema: 3, ahora: 2 }).filas[0]])
+prueba('si uno es de 3 jueces y otro de 5, no se comparan extremos: empate', mixto.map((f) => f.puesto).join() === '1,1')
+const t5 = posiciones(con5([['A', 28, 9, 9.5], ['B', 28, 9, 9.5], ['C', 27, 9, 9.5], ['D', 27, 9, 9.5]]).filas)
+prueba('puede haber dos empates a la vez (1.º y 3.º)', JSON.stringify(puestosEmpatados(t5)) === '[1,3]')
+const borde = posiciones(con5([['P1', 30, 9, 9], ['P2', 29, 9, 9], ['P3', 28, 9, 9], ['P4', 27, 9, 9], ['P5', 26, 9, 9], ['P6', 25, 9, 9], ['P7', 24, 9, 9], ['P8', 23, 9, 9], ['P9', 23, 9, 9], ['P10', 22, 9, 9]]).filas)
+prueba('si hay empate en el 8.º puesto entran todos los empatados (9 filas) y el 10.º queda afuera', borde.length === 9 && borde[7].puesto === 8 && borde[8].puesto === 8 && borde[7].empatado)
+prueba('un resultado viejo sin datos de desempate se lee sin romperse (queda como 3 jueces)', posiciones([{ id: 'x', competidor: 'X', puntaje: 5, en: 1 }, { id: 'y', competidor: 'Y', puntaje: 5, en: 2 }]).every((f) => f.puesto === 1 && f.empatado))
+
+// volver a pasar para desempatar: el puntaje de desempate NO reemplaza al original, solo ordena a los empatados
+const paso = (r, competidor, puntaje, ahora, extra = {}) => agregarResultado(r, { ...grupo, competidor, puntaje, ahora, ...extra })
+let de = null
+de = paso(de, 'A', 28, 1); de = paso(de, 'B', 28, 2); de = paso(de, 'C', 27.9, 3)
+prueba('A y B empatan en 28 y C es tercero', posiciones(de.filas).map((f) => f.puesto).join() === '1,1,3')
+de = paso(de, 'A', 27.5, 10)
+prueba('A vuelve a pasar: el empate sigue hasta que B también pase', posiciones(de.filas).map((f) => f.puesto).join() === '1,1,3' && de.filas.find((f) => f.id === 'a').puntaje === 28)
+de = paso(de, 'B', 27.8, 11)
+const trasDesempate = posiciones(de.filas)
+prueba('B pasa y gana el desempate: B primero, A segundo, C tercero, sin empates', trasDesempate.map((f) => f.competidor).join() === 'B,A,C' && trasDesempate.map((f) => f.puesto).join() === '1,2,3' && !trasDesempate.some((f) => f.empatado))
+prueba('los puntajes originales no cambian con el desempate (C no pasa a ganarle a A y B)', trasDesempate.map((f) => f.puntaje).join() === '28,28,27.9')
+prueba('quedan guardados los puntajes de desempate (para mostrarlos)', trasDesempate[0].desempates[0].puntaje === 27.8 && trasDesempate[1].desempates[0].puntaje === 27.5)
+let de2 = null
+de2 = paso(de2, 'A', 28, 1); de2 = paso(de2, 'B', 28, 2)
+de2 = paso(de2, 'A', 27.5, 10); de2 = paso(de2, 'A', 27.9, 11)
+prueba('si el mismo empatado se equivoca y vuelve a cargar antes que el rival, se corrige (no cuenta dos vueltas)', de2.filas.find((f) => f.id === 'a').desempates.length === 1 && de2.filas.find((f) => f.id === 'a').desempates[0].puntaje === 27.9)
+de2 = paso(de2, 'B', 27.9, 12)
+prueba('si en el desempate vuelven a igualar, siguen empatados y tienen que pasar de nuevo', posiciones(de2.filas).map((f) => f.puesto).join() === '1,1')
+de2 = paso(de2, 'A', 27.0, 20); de2 = paso(de2, 'B', 27.3, 21)
+prueba('en la segunda vuelta de desempate se resuelve', posiciones(de2.filas).map((f) => f.competidor).join() === 'B,A' && !posiciones(de2.filas).some((f) => f.empatado))
+let de3 = null
+;[['A', 28], ['B', 28], ['C', 28], ['D', 20]].forEach(([c, p], i) => { de3 = paso(de3, c, p, i + 1) })
+de3 = paso(de3, 'A', 27, 10); de3 = paso(de3, 'B', 27.5, 11)
+prueba('con tres empatados no se resuelve nada hasta que pasen los tres', posiciones(de3.filas).map((f) => f.puesto).join() === '1,1,1,4')
+de3 = paso(de3, 'C', 27.5, 12)
+const parcial = posiciones(de3.filas)
+prueba('pasan los tres: A queda tercero y B y C siguen empatados en el 1.º', parcial.map((f) => f.puesto).join() === '1,1,3,4' && parcial[2].competidor === 'A' && parcial[0].empatado && !parcial[2].empatado)
+let de5 = null
+;[['A', 28, 9, 9.6], ['B', 28, 9, 9.6]].forEach(([c, p, m, M], i) => { de5 = paso(de5, c, p, i + 1, { sistema: 5, menor: m, mayor: M }) })
+de5 = paso(de5, 'A', 27, 10, { sistema: 5, menor: 8.9, mayor: 9.5 }); de5 = paso(de5, 'B', 27, 11, { sistema: 5, menor: 9.1, mayor: 9.4 })
+prueba('el desempate también usa los criterios de 5 jueces (mismo puntaje, gana el menor más alto)', posiciones(de5.filas)[0].competidor === 'B' && !posiciones(de5.filas)[0].empatado)
+
+// resultado de la categoría (Finalizar categoría)
+prueba('sin puntajes no hay resultado de categoría', resultadoDeCategoria(null).estado === 'vacio' && resultadoDeCategoria({ filas: [] }).estado === 'vacio')
+const final1 = resultadoDeCategoria(rk)
+prueba('con el podio definido muestra los 3 mejores', final1.estado === 'listo' && final1.filas.length === 3 && final1.filas.map((f) => f.competidor).join() === 'Lucía,Mateo,Camila')
+prueba('con empate en el podio no se puede cerrar: muestra el empate', resultadoDeCategoria(de).estado === 'listo' && resultadoDeCategoria(paso(paso(null, 'A', 28, 1), 'B', 28, 2)).estado === 'empate')
+prueba('un empate fuera del podio (4.º y 5.º) no impide cerrar', resultadoDeCategoria(orden([['A', 30], ['B', 29], ['C', 28], ['D', 20], ['E', 20]])).estado === 'listo')
+prueba('un empate en el 3.º puesto sí cuenta (hay que definir el bronce)', resultadoDeCategoria(orden([['A', 30], ['B', 29], ['C', 28], ['D', 28]])).estado === 'empate' && resultadoDeCategoria(orden([['A', 30], ['B', 29], ['C', 28], ['D', 28]])).empates.join() === '3')
+prueba('un empate en el 2.º puesto: el podio es A, B, C y hay que definir quién es segundo', resultadoDeCategoria(orden([['A', 30], ['B', 29], ['C', 29]])).estado === 'empate')
+const finalizado = { ...orden([['A', 30], ['B', 29]]), cierre: 'categoria' }
+prueba('después de cerrar una categoría, el primer puntaje de la siguiente empieza un ranking nuevo (aunque sea el mismo grupo)', agregarResultado(finalizado, { ...grupo, competidor: 'Nuevo', puntaje: 5, ahora: 9 }).filas.length === 1)
+prueba('un puntaje nuevo quita la marca de cierre', agregarResultado({ ...orden([['A', 30]]), cierre: 'ronda' }, { ...grupo, competidor: 'B', puntaje: 5, ahora: 9 }).cierre === null)
+const memC = new Map()
+const almC = { getItem: (k) => memC.get(k) ?? null, setItem: (k, v) => memC.set(k, String(v)), removeItem: (k) => memC.delete(k) }
+registrarEnRanking({ ...grupo, competidor: 'A', puntaje: 10, ahora: 1000 }, almC)
+marcarCierre('ronda', almC)
+prueba('se puede marcar que terminó la ronda', leerRanking(almC, 2000).cierre === 'ronda')
+marcarCierre(null, almC)
+prueba('y desmarcarlo', leerRanking(almC, 2000).cierre === null)
+limpiarRanking(almC)
+marcarCierre('ronda', almC)
+prueba('marcar sin ranking no inventa uno', leerRanking(almC, 2000) === null)
+
+// puntaje que decidió el desempate (para mostrarlo en pantalla)
+const cr = (arr) => posiciones(con5(arr).filas)
+const c1 = cr([['Beto', 28, 8.9, 9.8], ['Ana', 28, 9.1, 9.6]])
+prueba('si decidió el menor, los dos muestran su puntaje más bajo (y no el más alto)', c1[0].competidor === 'Ana' && JSON.stringify(c1[0].criterios) === '[{"tipo":"menor","valor":9.1}]' && JSON.stringify(c1[1].criterios) === '[{"tipo":"menor","valor":8.9}]')
+const c2 = cr([['Diego', 27.5, 9.0, 9.5], ['Carla', 27.5, 9.0, 9.7]])
+prueba('si los menores eran iguales y decidió el mayor, los dos muestran su puntaje más alto', c2[0].competidor === 'Carla' && JSON.stringify(c2[0].criterios) === '[{"tipo":"mayor","valor":9.7}]' && JSON.stringify(c2[1].criterios) === '[{"tipo":"mayor","valor":9.5}]')
+const c3 = cr([['A', 28, 9.1, 9.5], ['B', 28, 9.1, 9.7], ['C', 28, 8.9, 9.9]])
+prueba('con tres iguales: todos muestran el menor, y el mayor solo los dos que compartían menor', JSON.stringify(c3.map((f) => [f.competidor, f.criterios.map((c) => c.tipo + c.valor).join('+')])) === '[["B","menor9.1+mayor9.7"],["A","menor9.1+mayor9.5"],["C","menor8.9"]]')
+const c4 = cr([['A', 28, 9.0, 9.5], ['B', 28, 9.0, 9.5], ['C', 28, 8.8, 9.9]])
+prueba('los que siguen empatados no muestran el puntaje del mayor (no decidió nada entre ellos)', c4[0].empatado && c4[1].empatado && c4.slice(0, 2).every((f) => f.criterios.map((c) => c.tipo).join() === 'menor') && c4[2].criterios.map((c) => c.tipo).join() === 'menor')
+prueba('con puntajes finales distintos no hay nada que mostrar', cr([['A', 28, 9.0, 9.5], ['B', 27, 9.1, 9.6]]).every((f) => f.criterios.length === 0))
+prueba('con 3 jueces tampoco (no hay criterio)', posiciones(orden([['A', 20], ['B', 20]]).filas).every((f) => f.criterios.length === 0))
+
+// guardado en el navegador (almacenamiento simulado)
+const mem = new Map()
+const almacen = { getItem: (k) => mem.get(k) ?? null, setItem: (k, v) => mem.set(k, String(v)), removeItem: (k) => mem.delete(k) }
+registrarEnRanking({ ...grupo, competidor: 'Lucía', kata: 'Heian Shodan', puntaje: 28.6, ahora: 1000 }, almacen)
+registrarEnRanking({ ...grupo, competidor: 'Mateo', puntaje: 28.2, ahora: 2000 }, almacen)
+prueba('el ranking se guarda y se lee con los competidores y el kata', leerRanking(almacen, 3000)?.filas.length === 2 && leerRanking(almacen, 3000).filas[0].kata === 'Heian Shodan')
+registrarEnRanking({ ...grupo, competidor: 'Zoe', puntaje: null, ahora: 2500 }, almacen)
+registrarEnRanking({ ...grupo, competidor: 'Zoe', puntaje: 'abc', ahora: 2600 }, almacen)
+prueba('un resultado sin puntaje válido no entra al ranking', leerRanking(almacen, 3000).filas.length === 2)
+prueba('pasadas 12 horas sin puntajes, el ranking se considera olvidado', estaVencido(leerRanking(almacen, 3000), 2000 + 13 * 3600 * 1000) && leerRanking(almacen, 2000 + 13 * 3600 * 1000) === null)
+limpiarRanking(almacen)
+prueba('"Finalizar categoría" lo borra', leerRanking(almacen, 3000) === null)
+mem.set('tm-ranking', '{no es json')
+prueba('un dato dañado no rompe la pantalla pública', leerRanking(almacen, 3000) === null)
 
 console.log(`\nResultado: ${ok} pruebas correctas, ${fallos} fallidas.`)
 process.exit(fallos ? 1 : 0)

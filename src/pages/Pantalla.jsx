@@ -1,4 +1,7 @@
-import { useDisplayState, usePublicTheme } from '../hooks/usePublicDisplay'
+import { useDisplayState, usePublicTheme, useRanking } from '../hooks/usePublicDisplay'
+import { MAX_PUESTOS, PUESTOS_PODIO, posiciones } from '../lib/ranking'
+import { ListaRanking } from '../components/Ranking/Ranking'
+import { mensajeEmpate, tituloRanking } from '../lib/rankingTextos'
 import useArea, { etiquetaArea } from '../hooks/useArea'
 import marcaClara from '../assets/images/ipponia-marca.png'
 import marcaOscura from '../assets/images/ipponia-marca-oscuro.png'
@@ -137,10 +140,37 @@ function PantallaDestreza({ state, area }) {
   )
 }
 
+// Ranking de la ronda: los 8 mejores puntajes, con el podio destacado en oro, plata y bronce.
+// Según cómo lo marcó la mesa (`cierre`): fin de la ronda, empate a resolver o resultado final de la categoría (solo el podio).
+function PantallaRanking({ ranking }) {
+  const final = ranking.cierre === 'categoria'
+  const filas = posiciones(ranking.filas, final ? PUESTOS_PODIO : MAX_PUESTOS)
+  const empate = mensajeEmpate(filas)
+  const titulo = tituloRanking(ranking) + (ranking.cierre === 'ronda' ? ' · Finalizada' : '')
+  const pie = empate ?? (final ? 'Resultado de la categoría' : ranking.cierre === 'ronda' ? 'Los 8 mejores de la ronda' : 'Esperando al próximo competidor…')
+
+  return (
+    <div className="pr-pantalla pr-tema" onDoubleClick={toggleFullscreen}>
+      <div className="pr-cabecera">
+        <div className="pr-modulo">{titulo}</div>
+        <div className="pr-titulo">{final ? 'PODIO' : 'RANKING'}</div>
+      </div>
+      <ListaRanking filas={filas} ultimo={ranking.cierre ? null : ranking.ultimo} />
+      <div className={`pr-pie ${empate ? 'pr-pie-empate' : ''}`}>{pie}</div>
+    </div>
+  )
+}
+
 function PantallaContenido() {
   const state = useDisplayState()
+  const ranking = useRanking()
   usePublicTheme()
   const { area } = useArea()
+
+  // El ranking se ve solo entre competidores: sin resultado en pantalla (o, en Destreza, con el cronómetro
+  // todavía sin equipo) y desde que hay al menos un puntaje.
+  const entreCompetidores = !state || (state.tipo === 'destreza' && !state.equipo?.trim())
+  if (ranking && entreCompetidores) return <PantallaRanking ranking={ranking} />
 
   if (!state) {
     return (

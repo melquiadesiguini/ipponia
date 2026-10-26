@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { CLAVE_RANKING, leerRanking } from '../lib/ranking'
 
 const STORAGE_KEY = 'tm-display'
 
@@ -114,4 +115,20 @@ export async function openPublicDisplay() {
   } catch {
     // sin permiso para ver los monitores: queda en la pantalla actual
   }
+}
+
+// Pantalla pública: ranking de la ronda en curso (lo anota el panel de control al calcular cada resultado).
+// Devuelve null si no hay ranking, si quedó viejo o si todavía no hay ningún puntaje.
+export function useRanking() {
+  const [ranking, setRanking] = useState(() => leerRanking())
+
+  useEffect(() => {
+    const onStorage = (e) => {
+      if (e.key === CLAVE_RANKING || e.key === null) setRanking(leerRanking())
+    }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
+  }, [])
+
+  return ranking
 }
