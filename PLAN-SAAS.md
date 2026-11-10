@@ -443,7 +443,7 @@ Sub-etapas: **3a** sesión, permisos, ingreso por organización · **3b** Usuari
   - El service worker (modo sin conexión) **no guarda `_headers`** (Cloudflare no lo sirve como archivo y rompería la instalación). La imagen para compartir el enlace toma la dirección de la variable `VITE_SITE_URL`.
 - [ ] **Subir a `main`** (Cloudflare vuelve a compilar solo).
 - [x] **Variables de compilación:** las variables cargadas en el panel de Cloudflare no llegaron a la compilación (el sitio arrancó en modo local, sin pedir ingreso). Se resolvió con **`.env.production`** en el repositorio (URL y clave `publishable` de Supabase y `VITE_SITE_URL`: valores públicos), que Vite lee al compilar; el `.gitignore` tiene una excepción solo para ese archivo.
-- [ ] **Supabase:** Site URL y Redirect URLs de Authentication, y los secretos `ORIGENES_PERMITIDOS` y `SITIO_URL` de las funciones, con la dirección nueva.
+- [x] **Supabase** (9/11/2026): Site URL = `https://ipponia.pages.dev` y `https://ipponia.pages.dev/**` agregada a Redirect URLs (las de GitHub y `localhost` se mantienen); secretos de las funciones `ORIGENES_PERMITIDOS` = `https://ipponia.pages.dev,https://melquiadesiguini.github.io,http://localhost:5183,http://localhost:5173` y `SITIO_URL` = `https://ipponia.pages.dev`. Verificado: las funciones responden con CORS a esas direcciones y rechazan cualquier otra.
 - [ ] **Probar el sitio nuevo** (ingreso, mails de invitación y recuperación, alta de organización).
 - [ ] **Pasar el repositorio a privado** y verificar que Cloudflare siga compilando; apagar GitHub Pages y borrar `docs/`.
 - [ ] **Avisar a los clientes** (Ikigai Dojo, Hector Maroli) de la dirección nueva.
