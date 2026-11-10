@@ -340,7 +340,7 @@ function Kumite({ modoKansa = false, sistemaJueces = null }) {
       if (r.ok) {
         setGuardado({ tipo: 'ok', texto: 'Combate guardado en la nube.' })
       } else if (r.pendiente) {
-        setGuardado({ tipo: 'pendiente', texto: mensajeGuardado(r) })
+        setGuardado({ tipo: 'pendiente', texto: '' }) // sin conexión: no se muestra ningún cartel, el combate se envía solo
       } else {
         ultimoGuardado.current = '' // para poder reintentar
         setGuardado({ tipo: 'error', texto: mensajeGuardado(r) })
@@ -481,7 +481,7 @@ function Kumite({ modoKansa = false, sistemaJueces = null }) {
           )}
 
           {/* Si se cerró el cartel del ganador y el combate no se pudo guardar, el aviso sigue a la vista */}
-          {!modoKansa && ganador && ganador !== 'empate' && !resultadoVisible && guardado && guardado.tipo !== 'ok' && (
+          {!modoKansa && ganador && ganador !== 'empate' && !resultadoVisible && guardado?.tipo === 'error' && (
             <div className="resultado-banner resultado-empate">
               <span>
                 {guardado.tipo === 'error' ? '⚠️ ' : ''}{guardado.texto}
@@ -582,7 +582,7 @@ function Kumite({ modoKansa = false, sistemaJueces = null }) {
                 vs {nombreDe(oponenteDe(ganador))}: {calcularTotal(oponenteDe(ganador))}
               </p>
 
-              {guardado && (
+              {guardado && guardado.tipo !== 'pendiente' && (
                 <p className={`resultado-guardado resultado-guardado-${guardado.tipo}`} role="status">
                   {guardado.tipo === 'ok' ? '✅ ' : guardado.tipo === 'error' ? '⚠️ ' : ''}{guardado.texto}
                 </p>

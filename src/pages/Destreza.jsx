@@ -234,7 +234,8 @@ function Destreza() {
 
     setEstadoGuardado('Guardando…')
     guardarResultado({ modulo: 'destreza', payload: data }).then((r) => {
-      setEstadoGuardado(r.ok ? 'Resultado guardado en la nube.' : mensajeGuardado(r))
+      // sin conexión no se muestra ningún cartel: el resultado queda en el dispositivo y se envía solo
+      setEstadoGuardado(r.ok ? 'Resultado guardado en la nube.' : r.pendiente ? '' : mensajeGuardado(r))
     })
   }
 
