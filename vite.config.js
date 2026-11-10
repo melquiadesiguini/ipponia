@@ -6,7 +6,9 @@ import { join, relative, resolve, sep } from 'node:path'
 // Identificador único de cada compilación: la app lo compara con version.json
 // para detectar que hay una versión nueva publicada.
 const BUILD_ID = Date.now().toString()
-const BASE = '/ipponia/'
+// Dirección base de la app. Con Cloudflare se publica en la raíz ('/'). Para generar la versión vieja de
+// GitHub Pages (que vive en /ipponia/) se puede compilar con: APP_BASE=/ipponia/ npm run build
+const BASE = process.env.APP_BASE ?? '/'
 
 function versionFile() {
   return {
@@ -33,28 +35,40 @@ function listarArchivos(carpeta, raiz = carpeta) {
 // Sirve para que la app abra sin internet (modo sin conexión). Ver public/sw.plantilla.js.
 function serviceWorker() {
   let salida
+  let base = BASE
   return {
     name: 'service-worker',
     apply: 'build',
     configResolved(config) {
       salida = resolve(config.root, config.build.outDir)
+      base = config.base
     },
     closeBundle() {
-      const noPublicar = ['sw.js', 'sw.plantilla.js', 'version.json', '404.html']
+      // _headers y _redirects son de Cloudflare: no se sirven como archivos, así que no se guardan en el dispositivo
+      const noPublicar = ['sw.js', 'sw.plantilla.js', 'version.json', '404.html', '_headers', '_redirects']
       const archivos = listarArchivos(salida).filter((f) => !noPublicar.includes(f) && !f.endsWith('.map'))
       const plantilla = readFileSync(join(salida, 'sw.plantilla.js'), 'utf8')
       const codigo = plantilla
         .replace('__CACHE__', `ipponia-${BUILD_ID}`)
-        .replace('__BASE__', BASE)
-        .replace("'__ARCHIVOS__'", JSON.stringify(archivos.map((f) => BASE + f)))
+        .replace('__BASE__', base)
+        .replace("'__ARCHIVOS__'", JSON.stringify(archivos.map((f) => base + f)))
       writeFileSync(join(salida, 'sw.js'), codigo)
       rmSync(join(salida, 'sw.plantilla.js')) // la plantilla no hace falta publicarla
     },
   }
 }
 
+// Pone la dirección pública del sitio en la vista previa al compartir el enlace (las etiquetas og:image
+// necesitan dirección completa). Se toma de la variable VITE_SITE_URL; si no está, queda relativa.
+function direccionDelSitio() {
+  return {
+    name: 'direccion-del-sitio',
+    transformIndexHtml: (html) => html.replaceAll('__SITE_URL__', (process.env.VITE_SITE_URL ?? '').replace(/\/+$/, '')),
+  }
+}
+
 export default defineConfig({
-  plugins: [react(), versionFile(), serviceWorker()],
+  plugins: [react(), versionFile(), serviceWorker(), direccionDelSitio()],
   base: BASE,
   define: { __BUILD_ID__: JSON.stringify(BUILD_ID) },
 })

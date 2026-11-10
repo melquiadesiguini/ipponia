@@ -1,0 +1,9 @@
+{
+  // Configuración de Cloudflare Pages: publica la carpeta que genera "npm run build".
+  // Para cualquier dirección que no sea un archivo (por ejemplo /kumite o /mi-club/ingresar), Pages entrega
+  // index.html con estado 200 mientras no exista un 404.html (la app es de una sola página y resuelve las rutas
+  // en el navegador). Por eso el proyecto no tiene 404.html.
+  "name": "ipponia",
+  "compatibility_date": "2026-11-09",
+  "pages_build_output_dir": "./dist"
+}

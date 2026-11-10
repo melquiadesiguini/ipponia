@@ -30,8 +30,8 @@ npm run test:db          # base de datos real en memoria (PGlite)
 npx supabase functions deploy crear-organizacion crear-usuario resetear-clave desactivar-usuario --project-ref owfjaphsqcpfdjessjbp
 ```
 Variables opcionales (`npx supabase secrets set NOMBRE=valor --project-ref ...`):
-- `ORIGENES_PERMITIDOS`: sitios que pueden llamar (por defecto `github.io` y `localhost`).
-- `SITIO_URL`: dirección del sitio para los enlaces de invitación (por defecto `https://melquiadesiguini.github.io/ipponia`).
+- `ORIGENES_PERMITIDOS`: sitios que pueden llamar, separados por coma y con la dirección completa (por defecto `github.io` y `localhost`). **Con Cloudflare hay que cargarla** con la dirección del sitio nuevo y las de `localhost` (ver `CLOUDFLARE.md`).
+- `SITIO_URL`: dirección del sitio para los enlaces de invitación (por defecto `https://melquiadesiguini.github.io/ipponia`). **Con Cloudflare hay que cargarla** con la dirección del sitio nuevo, sin barra final.
 
 ## Ojo con el email
 Las invitaciones por email (y la recuperación de contraseña del dueño) necesitan un servidor de correo.

@@ -1,0 +1,25 @@
+# Cabeceras de seguridad y de caché de Cloudflare (Workers Static Assets).
+# Este archivo se copia a la carpeta publicada y Cloudflare lo lee; no se sirve como archivo.
+
+/*
+  Strict-Transport-Security: max-age=31536000
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
+  Cross-Origin-Opener-Policy: same-origin-allow-popups
+  # Política de contenido: solo se ejecuta código de este mismo sitio. La base de datos es Supabase y las
+  # tipografías son de Google Fonts (el service worker las guarda para verlas sin internet).
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://owfjaphsqcpfdjessjbp.supabase.co wss://owfjaphsqcpfdjessjbp.supabase.co; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+
+# Los archivos con nombre de versión (assets/…) no cambian nunca: se guardan un año
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Estos siempre se piden al servidor, para enterarse de las versiones nuevas
+/sw.js
+  Cache-Control: no-cache
+/version.json
+  Cache-Control: no-store
+/manifest.webmanifest
+  Cache-Control: no-cache

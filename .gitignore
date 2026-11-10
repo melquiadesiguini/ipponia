@@ -144,3 +144,6 @@ vite.config.ts.timestamp-*
 
 # Claude Code local tooling
 .claude/
+
+# Archivos temporales de Cloudflare (wrangler)
+.wrangler

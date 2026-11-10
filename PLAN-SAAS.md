@@ -429,3 +429,22 @@ Sub-etapas: **3a** sesión, permisos, ingreso por organización · **3b** Usuari
 - **Límite:** si un empatado se equivoca al cargar su desempate, puede volver a cargarlo mientras el rival no haya pasado (se corrige); una vez resuelto el empate, volver a cargar a alguno de ellos cuenta como corrección de su puntaje original.
 - **Se ve por qué desempató cada uno:** cuando dos competidores con el mismo puntaje final (y 5 jueces) se ordenan por el puntaje más bajo o el más alto, la fila de **los dos** muestra el puntaje que decidió ("Desempate por puntaje más bajo: 9.10" / "…más alto: 9.70"), en la pantalla pública y en la mesa. Los que siguen empatados no muestran nada (solo la etiqueta EMPATE). El puntaje de la nueva pasada se muestra como "Nueva pasada: 27.90".
 - **Ventana de empate de la mesa:** se sacó la leyenda larga ("No se puede cerrar la categoría…"); queda el título, las filas y el aviso corto "Empate en el puesto N: deben volver a pasar para desempatar" (el mismo de la pantalla pública).
+
+## 22. Migración a Cloudflare y repositorio privado (9/11/2026)
+
+**Decisiones:** hosting en **Cloudflare Pages** (proyecto `ipponia`) con la dirección gratuita **`https://ipponia.pages.dev`** (sin dominio propio por ahora), y repositorio de GitHub **privado**. Guía paso a paso: `CLOUDFLARE.md`.
+
+- [x] **Proyecto creado en Cloudflare Pages** (conectado al repositorio, con las variables `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` y `VITE_BASE`). La primera compilación usó el código viejo de `main` (`base = /ipponia/` y `404.html` de GitHub Pages): el sitio se ve en blanco y las rutas como `/kumite` devuelven 404. Lo resuelve el código nuevo (ver abajo) al subirlo a `main`.
+- [x] **Código preparado** (probado en local con `wrangler pages dev`, que replica Cloudflare Pages):
+  - La app se compila para la **raíz** (`/`) en vez de `/ipponia/` (`APP_BASE=/ipponia/` permite generar la versión vieja de GitHub Pages; la variable `VITE_BASE` de Cloudflare ya no se usa). Dirección de pruebas local: `http://localhost:5183/`.
+  - Se **quitó `404.html`**: sin ese archivo, Pages entrega `index.html` con estado 200 para cualquier dirección que no sea un archivo (se probó `/kumite`, `/mi-club/ingresar` y `/pantalla`).
+  - `wrangler.jsonc` declara el proyecto de Pages (`pages_build_output_dir: ./dist`).
+  - `public/_headers`: HSTS, `X-Content-Type-Options`, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy`, `Cross-Origin-Opener-Policy`, **Content-Security-Policy** (solo código del propio sitio; conexiones solo a Supabase; tipografías de Google) y caché (los archivos con versión, un año; `sw.js`, `version.json` y el manifiesto, siempre al servidor). Se verificó que la app (ingreso, Kata con ranking, Kumite, Destreza, Cuenta, pantalla pública) funciona con la política activa y que las tipografías cargan.
+  - El service worker (modo sin conexión) **no guarda `_headers`** (Cloudflare no lo sirve como archivo y rompería la instalación). La imagen para compartir el enlace toma la dirección de la variable `VITE_SITE_URL`.
+- [ ] **Subir a `main`** (Cloudflare vuelve a compilar solo).
+- [ ] **Variable `VITE_SITE_URL`** en Cloudflare = `https://ipponia.pages.dev`.
+- [ ] **Supabase:** Site URL y Redirect URLs de Authentication, y los secretos `ORIGENES_PERMITIDOS` y `SITIO_URL` de las funciones, con la dirección nueva.
+- [ ] **Probar el sitio nuevo** (ingreso, mails de invitación y recuperación, alta de organización).
+- [ ] **Pasar el repositorio a privado** y verificar que Cloudflare siga compilando; apagar GitHub Pages y borrar `docs/`.
+- [ ] **Avisar a los clientes** (Ikigai Dojo, Hector Maroli) de la dirección nueva.
+- **Riesgos:** (1) al pasar a privado, el sitio de GitHub Pages deja de existir: los enlaces viejos dejan de andar; (2) el modo sin conexión y la sesión se guardan por dirección, así que en el sitio nuevo cada dispositivo tiene que volver a ingresar y abrir la app una vez con internet; (3) la política de seguridad bloquea cualquier servicio externo nuevo hasta que se agregue en `public/_headers`; (4) no se pudo probar en el navegador integrado el registro del service worker ni la exportación a Excel bajo la política (hay que mirarlos en el sitio real).
