@@ -19,12 +19,14 @@ dirección que no sea un archivo, por ejemplo `/kumite` o `/mi-club/ingresar`. C
 
 - **Workers & Pages → ipponia → Settings.**
 - **Build command:** `npm run build` · **Build output directory:** `dist` · **Production branch:** `main` · Root directory: vacío.
-- **Variables de compilación** (*Variables and Secrets*, de tipo compilación, no de ejecución). Los valores de `VITE_SUPABASE_*` están en
-  tu `.env.local`:
-  - `VITE_SUPABASE_URL`
-  - `VITE_SUPABASE_ANON_KEY` (la clave **pública** `anon`/`publishable`; **nunca** la `service_role`)
-  - `VITE_SITE_URL` = `https://ipponia.pages.dev` (sin barra final). Se usa para la imagen que se ve al compartir el enlace por WhatsApp.
-  - (`VITE_BASE` ya no se usa: la app se compila para la raíz sin que haga falta. Se puede borrar.)
+- **Variables de compilación:** los valores públicos (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` y `VITE_SITE_URL`) están en el archivo
+  **`.env.production`** del repositorio, que Vite lee solo al hacer `npm run build`. Se hizo así porque las variables cargadas en el
+  panel de Cloudflare no llegaron a la compilación y esto no depende del panel.
+  - Son **públicos por diseño** (la URL y la clave `publishable`/`anon` van dentro del JavaScript que baja cualquier navegador; lo que
+    protege los datos son las reglas de Supabase). **Nunca poner ahí la clave `service_role` ni una `secret`.**
+  - Si algún día se cambia el proyecto de Supabase o la dirección del sitio, se edita ese archivo y se sube a `main`.
+  - Las variables que se carguen en el panel de Cloudflare mandan sobre este archivo. En tu computadora manda tu `.env.local`.
+  - `VITE_BASE` (que se había cargado en el panel) ya no se usa: se puede borrar.
 
 ## En Supabase (una vez, con la dirección nueva)
 

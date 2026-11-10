@@ -442,7 +442,7 @@ Sub-etapas: **3a** sesión, permisos, ingreso por organización · **3b** Usuari
   - `public/_headers`: HSTS, `X-Content-Type-Options`, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy`, `Cross-Origin-Opener-Policy`, **Content-Security-Policy** (solo código del propio sitio; conexiones solo a Supabase; tipografías de Google) y caché (los archivos con versión, un año; `sw.js`, `version.json` y el manifiesto, siempre al servidor). Se verificó que la app (ingreso, Kata con ranking, Kumite, Destreza, Cuenta, pantalla pública) funciona con la política activa y que las tipografías cargan.
   - El service worker (modo sin conexión) **no guarda `_headers`** (Cloudflare no lo sirve como archivo y rompería la instalación). La imagen para compartir el enlace toma la dirección de la variable `VITE_SITE_URL`.
 - [ ] **Subir a `main`** (Cloudflare vuelve a compilar solo).
-- [ ] **Variable `VITE_SITE_URL`** en Cloudflare = `https://ipponia.pages.dev`.
+- [x] **Variables de compilación:** las variables cargadas en el panel de Cloudflare no llegaron a la compilación (el sitio arrancó en modo local, sin pedir ingreso). Se resolvió con **`.env.production`** en el repositorio (URL y clave `publishable` de Supabase y `VITE_SITE_URL`: valores públicos), que Vite lee al compilar; el `.gitignore` tiene una excepción solo para ese archivo.
 - [ ] **Supabase:** Site URL y Redirect URLs de Authentication, y los secretos `ORIGENES_PERMITIDOS` y `SITIO_URL` de las funciones, con la dirección nueva.
 - [ ] **Probar el sitio nuevo** (ingreso, mails de invitación y recuperación, alta de organización).
 - [ ] **Pasar el repositorio a privado** y verificar que Cloudflare siga compilando; apagar GitHub Pages y borrar `docs/`.

@@ -61,9 +61,14 @@ function serviceWorker() {
 // Pone la dirección pública del sitio en la vista previa al compartir el enlace (las etiquetas og:image
 // necesitan dirección completa). Se toma de la variable VITE_SITE_URL; si no está, queda relativa.
 function direccionDelSitio() {
+  let sitio = ''
   return {
     name: 'direccion-del-sitio',
-    transformIndexHtml: (html) => html.replaceAll('__SITE_URL__', (process.env.VITE_SITE_URL ?? '').replace(/\/+$/, '')),
+    // config.env incluye las variables VITE_* de los archivos .env y las del sistema (Cloudflare)
+    configResolved(config) {
+      sitio = String(config.env.VITE_SITE_URL ?? '').replace(/\/+$/, '')
+    },
+    transformIndexHtml: (html) => html.replaceAll('__SITE_URL__', sitio),
   }
 }
 
